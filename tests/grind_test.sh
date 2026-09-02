@@ -9,6 +9,8 @@ export INFERNODE_ROOT
 python3 - "$ROOT" <<'PY'
 import hashlib
 import importlib.util
+import io
+import json
 import os
 import sys
 import tempfile
@@ -19,6 +21,48 @@ spec = importlib.util.spec_from_file_location(
     "grind", root / "grind.py")
 grind = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(grind)
+
+# The harness owns the campaign-side gateway qualification contract. Exercise
+# it without starting a gate or spending model credit.
+health = {
+    "status": "ok", "backend": "mock", "stateless": True,
+    "quota_recovery": True, "idle_timeout_seconds": 300,
+    "hardened": True, "disabled_features": ["plugins"],
+    "codex_version": "codex-cli test",
+}
+models = {"data": [{"id": "default"}]}
+old_urlopen = grind.urllib.request.urlopen
+
+class JsonResponse(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+def fake_urlopen(url, timeout):
+    payload = health if url.endswith("/health") else models
+    return JsonResponse(json.dumps(payload).encode())
+
+grind.urllib.request.urlopen = fake_urlopen
+for requirements, expect in (
+        ({"backend": "codex-cli"}, "backend"),
+        ({"hardened": True, "backend": "mock"}, None),
+        ({"quota_recovery": True, "backend": "mock"}, None),
+        ({"idle_timeout_max": 300, "backend": "mock"}, None),
+        ({"idle_timeout_max": 299, "backend": "mock"}, "idle timeout"),
+        ({"disabled_features": ["plugins"], "backend": "mock"}, None),
+        ({"disabled_features": ["no_such_feature"], "backend": "mock"},
+         "does not disable"),
+        ({"codex_version": "different", "backend": "mock"}, "pins")):
+    try:
+        grind.gateway_preflight("http://127.0.0.1:1/v1", "default",
+                                requirements)
+    except RuntimeError as exc:
+        assert expect and expect in str(exc), (requirements, exc)
+    else:
+        assert expect is None, (requirements, "was accepted")
+grind.urllib.request.urlopen = old_urlopen
 
 # Source-aware scenarios carry a pre-model nsaudit report in the same state
 # bundle as the trajectory. Preserve it verbatim for evidence and scoring.
