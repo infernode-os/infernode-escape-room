@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+vendor/
+
+# Campaign results may contain prompts, trajectories, canaries, and audit data.
+evidence/
+results/
+grindhouse/
+*.pcap
+*.qcow2
+*.overlay
+
+# Operator-local state must never enter the research repository.
+.env
+.codex*/
+auth.json
+config.toml

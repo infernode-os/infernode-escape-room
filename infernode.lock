@@ -1,0 +1,3 @@
+# InferNode source used to validate this harness revision.
+repository https://github.com/infernode-os/infernode.git
+commit c5c0717d6d6d7f30ee3b8f383c34b09f52dc603a

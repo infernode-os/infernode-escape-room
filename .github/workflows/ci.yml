@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Create Python environment
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check -r requirements.txt
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Check out pinned InferNode dependency
+        run: ./scripts/bootstrap.sh
+
+      - name: Run deterministic harness tests
+        env:
+          INFERNODE_ROOT: ${{ github.workspace }}/vendor/infernode
+        run: ./tests/run.sh
+
+      - name: Reject accidentally tracked operator data
+        run: |
+          if git ls-files | grep -E '(^|/)(auth\.json|\.env|evidence|results|grindhouse)(/|$)' ; then
+            echo 'operator data is tracked' >&2
+            exit 1
+          fi
