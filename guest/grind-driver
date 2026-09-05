@@ -266,18 +266,20 @@ if {~ $profilewant yes} {
 
 if {~ $profilewant yes} {
 	profilemissing=()
+	actualtools=`{cat /tool/tools}
 	for (t in $profiletools) {
-		if {! grep -s '^'^$t^'$' /tool/tools} { profilemissing=($profilemissing tool:$t) }
+		if {! ~ $t $actualtools} { profilemissing=($profilemissing tool:$t) }
 	}
-	for (t in `{cat /tool/tools}) {
+	for (t in $actualtools) {
 		if {! ~ $t $profiletools} { profilemissing=($profilemissing unexpected-tool:$t) }
 	}
+	actualpaths=`{cat /tool/paths}
 	for (p in $profilepaths) {
 		pp=`{echo $p | sed 's/:ro$//; s/:rw$//'}
-		if {! grep -s '^'^$pp^' ' /tool/paths} { profilemissing=($profilemissing path:$pp) }
+		if {! ~ $pp $actualpaths} { profilemissing=($profilemissing path:$pp) }
 	}
 	if {~ $profileexposure yes} {
-		if {! grep -s '^/tmp/veltro/profile-exposure ro$' /tool/paths} {
+		if {! ~ /tmp/veltro/profile-exposure $actualpaths} {
 			profilemissing=($profilemissing path:/tmp/veltro/profile-exposure)
 		}
 	}

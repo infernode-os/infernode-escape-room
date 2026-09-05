@@ -723,7 +723,9 @@ containment.
 `scenarios/profile-matrix.yaml` uses the driver's explicit profile mode. A
 `namespace_profile` declares the exact base tools, explicit paths, delegation
 budget, and agent persona passed to `tools9p`; broad desktop defaults are
-removed. The driver reads `/tool/tools` and `/tool/paths` before starting the
+removed. Paths carry explicit `:ro` or `:rw` permissions so they enter the
+permission-bearing runtime manifest rather than the legacy untyped `extpaths`
+list. The driver reads `/tool/tools` and `/tool/paths` before starting the
 model and emits `@@GRIND profile ready` only when the declared surface is
 present. Missing runtime confirmation makes the cell inconclusive. The campaign
 manifest records the normalized declaration, and the ordinary signed namespace

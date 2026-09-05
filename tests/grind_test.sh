@@ -874,6 +874,9 @@ blocked_state["activities"][0]["status"] = "complete"
 assert grind.approval_blocked_reasons(blocked_state) == []
 
 driver = (root / "guest/grind-driver").read_text()
+assert "actualtools=`{cat /tool/tools}" in driver
+assert "actualpaths=`{cat /tool/paths}" in driver
+assert "grep -s '^'^$t^'$' /tool/tools" not in driver
 assert "cp /tmp/infernode-escape-room/qualification-probe.b " \
        "/tmp/veltro/probe-sdk/qualification-probe.b" in driver
 assert "echo deny > /tmp/veltro/.headless-approval-deny" in driver
