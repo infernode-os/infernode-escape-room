@@ -80,7 +80,11 @@ with tempfile.TemporaryDirectory() as td:
     grind.STAGE = Path(td) / "stage"
     grind.INEMU_TMP = Path(td) / "tmp"
     grind.STAGE.mkdir(parents=True)
+    os.chmod(grind.STAGE, 0o775)
     (grind.STAGE / "quota-paused").write_text("stale\n")
+    os.chmod(grind.STAGE / "quota-paused", 0o664)
+    (grind.STAGE / "prompt").write_text("stale public prompt\n")
+    os.chmod(grind.STAGE / "prompt", 0o664)
     grind.stage_scenario({"source_ro": True, "nsaudit": True,
                           "prompt": "inspect source", "run_id": "RUN-TEST"},
                          "default", "http://127.0.0.1:1/v1", "high")
@@ -88,6 +92,9 @@ with tempfile.TemporaryDirectory() as td:
     assert (grind.STAGE / "nsaudit").read_text() == "yes\n"
     assert (grind.STAGE / "rz").read_text() == "high\n"
     assert not (grind.STAGE / "quota-paused").exists()
+    assert (grind.STAGE.stat().st_mode & 0o777) == 0o700
+    assert all((path.stat().st_mode & 0o777) == 0o600
+               for path in grind.STAGE.iterdir() if path.is_file())
 
     profile_scenario = {
         "escape_room": True,

@@ -159,58 +159,70 @@ def namespace_profile(sc):
 
 
 def stage_scenario(sc, model, url, rz):
-    STAGE.mkdir(parents=True, exist_ok=True)
+    # Base images and interrupted older runs can leave this persistent host
+    # mount with permissive modes. Tighten the existing tree before truncating
+    # any staged prompt or run metadata, so there is no exposure window.
+    private_dir(STAGE)
+    seal_private_tree(STAGE)
     reset_stage_evidence()
-    (STAGE / "url").write_text(url + "\n")
-    (STAGE / "model").write_text((sc.get("model") or model) + "\n")
-    (STAGE / "rz").write_text(rz + "\n")
-    (STAGE / "settle").write_text(str(sc.get("settle", 4)) + "\n")
+    write_private(STAGE / "url", url + "\n")
+    write_private(STAGE / "model", (sc.get("model") or model) + "\n")
+    write_private(STAGE / "rz", rz + "\n")
+    write_private(STAGE / "settle", str(sc.get("settle", 4)) + "\n")
     # prompt is optional: message-arrival scenarios (msg: watch) are driven by
     # the incoming message, not a user prompt.
     prompt = sc.get("prompt", "") or ""
     prompt = prompt.replace("GENERATED-IN-MANIFEST", sc.get("run_id", "UNSET"))
-    (STAGE / "prompt").write_text(prompt)
-    (STAGE / "run-id").write_text(sc.get("run_id", "") + "\n")
+    write_private(STAGE / "prompt", prompt)
+    write_private(STAGE / "run-id", sc.get("run_id", "") + "\n")
     # msg: none | inbox | watch — enable the /mnt/msg mock inbox / msgwatch.
-    (STAGE / "msg").write_text((sc.get("msg", "none") or "none") + "\n")
+    write_private(STAGE / "msg", (sc.get("msg", "none") or "none") + "\n")
     # matrix: <composition-name> pre-starts the matrix runtime headless.
-    (STAGE / "matrixcomp").write_text((sc.get("matrix", "none") or "none") + "\n")
+    write_private(STAGE / "matrixcomp",
+                  (sc.get("matrix", "none") or "none") + "\n")
     # followthrough: true → after Activity 0 first settles, wait for any delegated
     # child activity to reach a terminal status, then re-prompt Activity 0 to
     # relay the result (the meta-agent's default is to reply "I'll report back"
     # and go idle, so a single-shot settle captures the acknowledgement, not the
     # answer). Set on delegated-RESULT scenarios (INFR-394).
-    (STAGE / "followthrough").write_text(("yes" if sc.get("followthrough") else "no") + "\n")
-    (STAGE / "campaign-wait").write_text(("yes" if sc.get("campaign_wait") else "no") + "\n")
+    write_private(STAGE / "followthrough",
+                  ("yes" if sc.get("followthrough") else "no") + "\n")
+    write_private(STAGE / "campaign-wait",
+                  ("yes" if sc.get("campaign_wait") else "no") + "\n")
     audit = sc.get("audit", "required" if sc.get("escape_room") else "no")
-    (STAGE / "audit").write_text(("required" if audit is True else str(audit)) + "\n")
+    write_private(STAGE / "audit",
+                  ("required" if audit is True else str(audit)) + "\n")
     # Source-assisted campaigns expose only the checked-in source roots named
     # by grind-driver. Never bind the emulator root: it also contains dynamic
     # canaries and the evidence working set.
-    (STAGE / "source-ro").write_text("yes\n" if sc.get("source_ro") else "no\n")
+    write_private(STAGE / "source-ro",
+                  "yes\n" if sc.get("source_ro") else "no\n")
     # Capture nsaudit's view of the live /tool profile before the model starts.
     # This is advisory evidence; the signed runtime namespace manifest remains
     # the record of what restrictns actually constructed.
-    (STAGE / "nsaudit").write_text("yes\n" if sc.get("nsaudit") else "no\n")
+    write_private(STAGE / "nsaudit",
+                  "yes\n" if sc.get("nsaudit") else "no\n")
     profile = namespace_profile(sc)
-    (STAGE / "profile-mode").write_text("yes\n" if profile else "no\n")
-    (STAGE / "profile-name").write_text((profile or {}).get("name", "") + "\n")
-    (STAGE / "profile-tools").write_text(
-        "\n".join((profile or {}).get("tools", [])) + ("\n" if profile else ""))
-    (STAGE / "profile-paths").write_text(
-        "\n".join((profile or {}).get("paths", [])) +
-        ("\n" if profile and profile["paths"] else ""))
-    (STAGE / "profile-budget").write_text(
-        ",".join((profile or {}).get("budget", [])) + "\n")
-    (STAGE / "profile-agenttype").write_text(
-        (profile or {}).get("agenttype", "default") + "\n")
-    (STAGE / "profile-exposure").write_text(
-        "yes\n" if sc.get("expected_exposure") else "no\n")
+    write_private(STAGE / "profile-mode", "yes\n" if profile else "no\n")
+    write_private(STAGE / "profile-name", (profile or {}).get("name", "") + "\n")
+    write_private(STAGE / "profile-tools",
+                  "\n".join((profile or {}).get("tools", [])) +
+                  ("\n" if profile else ""))
+    write_private(STAGE / "profile-paths",
+                  "\n".join((profile or {}).get("paths", [])) +
+                  ("\n" if profile and profile["paths"] else ""))
+    write_private(STAGE / "profile-budget",
+                  ",".join((profile or {}).get("budget", [])) + "\n")
+    write_private(STAGE / "profile-agenttype",
+                  (profile or {}).get("agenttype", "default") + "\n")
+    write_private(STAGE / "profile-exposure",
+                  "yes\n" if sc.get("expected_exposure") else "no\n")
     probes = []
     for chk in (sc.get("expects", {}).get("probe_contains") or []):
         probes.append(chk["path"])
-    (STAGE / "probefiles").write_text("\n".join(probes) + ("\n" if probes else ""))
-    (STAGE / "quota-events").write_text("")
+    write_private(STAGE / "probefiles",
+                  "\n".join(probes) + ("\n" if probes else ""))
+    write_private(STAGE / "quota-events", "")
     try:
         (STAGE / "quota-paused").unlink()
     except FileNotFoundError:
@@ -1720,6 +1732,10 @@ def main():
             (out, rc, completed, killed, dur, wall_dur,
              quota_events) = run_emu(
                 emu, sc.get("timeout", args.timeout), args.url)
+            # Inferno's cp creates conventional 0664 files through trfs. The
+            # 0700 stage parent protects them in flight; normalize the export
+            # immediately after the emulator stops and before archiving it.
+            seal_private_tree(STAGE)
             st = parse_state(out)
             logs = read_inemu_logs()
             activity = attempt_activity(out, logs)
