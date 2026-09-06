@@ -6,6 +6,7 @@ ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 for test in \
 	"$ROOT/tests/grind_test.sh" \
 	"$ROOT/tests/driver_status_test.sh" \
+	"$ROOT/tests/prepare_codex_home_test.sh" \
 	"$ROOT/tests/escape_lab_test.sh" \
 	"$ROOT/tests/emu_liveness_test.sh" \
 	"$ROOT/tests/profile_namespace_test.sh" \

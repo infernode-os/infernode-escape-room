@@ -271,8 +271,8 @@ mkdir "$CODEX_LOGIN_HOME"
 chmod 700 "$CODEX_LOGIN_HOME"
 CODEX_HOME="$CODEX_LOGIN_HOME" codex login --device-auth
 CODEX_HOME="$CODEX_LOGIN_HOME" codex login status
-tools/codex-gate/serve-codex-gate.sh \
-  --prepare-home "$CODEX_LOGIN_HOME" "$CODEX_GATE_CODEX_HOME"
+./scripts/prepare-codex-home.py \
+  "$CODEX_LOGIN_HOME" "$CODEX_GATE_CODEX_HOME"
 ```
 
 Use the browser flow to sign in with ChatGPT. Do not place an API key in this
@@ -281,7 +281,8 @@ account or its environment. Current Codex releases may create `log/` and
 private login source and copies only the fresh, regular, mode-0600 `auth.json`
 into a newly created mode-0700 campaign home. It rejects an existing
 destination, symlinks, configuration, plugins, skills, and other inherited
-state. Do not widen `CODEX_GATE_HOME_ALLOW` to make a login directory pass.
+state. This helper is campaign infrastructure owned by this repository. Do not
+widen InferNode's `CODEX_GATE_HOME_ALLOW` to make a login directory pass.
 
 Never seed a new run from an older copied `auth.json`. Codex refresh tokens
 rotate; a previously used copy can fail only after the model is live, wasting
