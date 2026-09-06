@@ -117,9 +117,10 @@ def reset_stage_evidence():
 
 
 PROFILE_NAME_RE = re.compile(r"[a-z0-9][a-z0-9+_-]{0,63}\Z")
+RUNTIME_PROFILE_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,63}\Z")
 PROFILE_TOOL_RE = re.compile(r"[a-z][a-z0-9_-]{0,63}\Z")
 PROFILE_PATH_RE = re.compile(
-    r"/(?:[A-Za-z0-9._+-]+/)*[A-Za-z0-9._+-]+(?::(?:ro|rw))?\Z")
+    r"/(?:[A-Za-z0-9._+-]+/)*[A-Za-z0-9._+-]+(?::(?:ro|rw|cow))?\Z")
 
 
 def namespace_profile(sc):
@@ -136,6 +137,10 @@ def namespace_profile(sc):
     name = str(raw.get("name", ""))
     if not PROFILE_NAME_RE.fullmatch(name):
         raise ValueError(f"invalid namespace profile name {name!r}")
+    runtime = [str(profile) for profile in (raw.get("runtime") or [])]
+    if len(set(runtime)) != len(runtime) or any(
+            not RUNTIME_PROFILE_RE.fullmatch(profile) for profile in runtime):
+        raise ValueError(f"namespace profile {name!r} has invalid or duplicate runtime profiles")
     tools = raw.get("tools")
     if not isinstance(tools, list) or not tools:
         raise ValueError(f"namespace profile {name!r} needs a non-empty tools list")
@@ -154,7 +159,7 @@ def namespace_profile(sc):
     agenttype = str(raw.get("agenttype", "redteam"))
     if not PROFILE_TOOL_RE.fullmatch(agenttype):
         raise ValueError(f"namespace profile {name!r} has invalid agenttype")
-    return {"name": name, "tools": tools, "paths": paths,
+    return {"name": name, "runtime": runtime, "tools": tools, "paths": paths,
             "budget": budget, "agenttype": agenttype}
 
 
@@ -205,6 +210,9 @@ def stage_scenario(sc, model, url, rz):
     profile = namespace_profile(sc)
     write_private(STAGE / "profile-mode", "yes\n" if profile else "no\n")
     write_private(STAGE / "profile-name", (profile or {}).get("name", "") + "\n")
+    write_private(STAGE / "profile-runtime",
+                  "\n".join((profile or {}).get("runtime", [])) +
+                  ("\n" if profile and profile["runtime"] else ""))
     write_private(STAGE / "profile-tools",
                   "\n".join((profile or {}).get("tools", [])) +
                   ("\n" if profile else ""))

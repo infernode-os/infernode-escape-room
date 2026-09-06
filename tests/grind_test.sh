@@ -22,6 +22,20 @@ spec = importlib.util.spec_from_file_location(
 grind = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(grind)
 
+matrix = grind.yaml.safe_load((root / "scenarios/profile-matrix.yaml").read_text())
+profiles = [grind.namespace_profile(sc) for sc in matrix["scenarios"]]
+assert len(profiles) == 8, profiles
+assert all(profile["runtime"] for profile in profiles), profiles
+assert {runtime for profile in profiles for runtime in profile["runtime"]} == {
+    "profile-minimal-headless", "profile-desktop-gui",
+    "profile-messaging", "profile-payments",
+}, profiles
+assert any(len(profile["runtime"]) == 3 for profile in profiles), profiles
+
+driver = (root / "guest/grind-driver").read_text()
+assert "profilep=($profilep -P $p)" in driver
+assert "grep -s '^'^$record^'$' /tool/paths" in driver
+
 # The harness owns the campaign-side gateway qualification contract. Exercise
 # it without starting a gate or spending model credit.
 health = {
@@ -101,8 +115,9 @@ with tempfile.TemporaryDirectory() as td:
         "expected_exposure": True,
         "namespace_profile": {
             "name": "minimal-headless+source",
+            "runtime": ["profile-minimal-headless"],
             "tools": ["read", "list", "find", "grep"],
-            "paths": ["/tmp/veltro/scratch:rw"],
+            "paths": ["/tmp/veltro/scratch:cow"],
             "agenttype": "redteam",
         },
         "prompt": "exercise the explicit profile",
@@ -110,8 +125,9 @@ with tempfile.TemporaryDirectory() as td:
     }
     assert grind.namespace_profile(profile_scenario) == {
         "name": "minimal-headless+source",
+        "runtime": ["profile-minimal-headless"],
         "tools": ["read", "list", "find", "grep"],
-        "paths": ["/tmp/veltro/scratch:rw"],
+        "paths": ["/tmp/veltro/scratch:cow"],
         "budget": [],
         "agenttype": "redteam",
     }
@@ -120,10 +136,12 @@ with tempfile.TemporaryDirectory() as td:
     assert (grind.STAGE / "profile-mode").read_text() == "yes\n"
     assert (grind.STAGE / "profile-name").read_text() == \
         "minimal-headless+source\n"
+    assert (grind.STAGE / "profile-runtime").read_text() == \
+        "profile-minimal-headless\n"
     assert (grind.STAGE / "profile-tools").read_text() == \
         "read\nlist\nfind\ngrep\n"
     assert (grind.STAGE / "profile-paths").read_text() == \
-        "/tmp/veltro/scratch:rw\n"
+        "/tmp/veltro/scratch:cow\n"
     assert (grind.STAGE / "profile-budget").read_text() == "\n"
     assert (grind.STAGE / "profile-agenttype").read_text() == "redteam\n"
     assert (grind.STAGE / "profile-exposure").read_text() == "yes\n"
@@ -134,6 +152,10 @@ with tempfile.TemporaryDirectory() as td:
              "namespace_profile": {"name": "minimal", "tools": ["read"]}},
             {"namespace_profile": {"name": "bad name", "tools": ["read"]}},
             {"namespace_profile": {"name": "minimal", "tools": ["read", "read"]}},
+            {"namespace_profile": {"name": "minimal", "tools": ["read"],
+                                   "runtime": ["bad/profile"]}},
+            {"namespace_profile": {"name": "minimal", "tools": ["read"],
+                                   "runtime": ["profile-minimal", "profile-minimal"]}},
             {"namespace_profile": {"name": "minimal", "tools": ["read"],
                                    "paths": ["/tmp/ok:ro", "/tmp/ok:ro"]}},
             {"namespace_profile": {"name": "minimal", "tools": ["read"],
