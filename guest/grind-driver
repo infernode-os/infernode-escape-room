@@ -71,6 +71,8 @@ profilename=default
 if {ftest -f $stage/profile-name} { profilename=`{cat $stage/profile-name} }
 profiletools=()
 if {ftest -f $stage/profile-tools} { profiletools=`{cat $stage/profile-tools} }
+profileruntime=()
+if {ftest -f $stage/profile-runtime} { profileruntime=`{cat $stage/profile-runtime} }
 profilepaths=()
 if {ftest -f $stage/profile-paths} { profilepaths=`{cat $stage/profile-paths} }
 profilebudget=()
@@ -252,7 +254,12 @@ if {~ $profilewant yes} {
 	wmp=()
 	activetools=$profiletools
 	if {! ~ $#profilebudget 0} { budgetarg=(-b $profilebudget) }
-	for (p in $profilepaths) { profilep=($profilep -p $p) }
+	if {! ~ $#profileruntime 0} {
+		activetools=()
+		for (p in $profileruntime) { profilep=($profilep -P $p) }
+	}{
+		for (p in $profilepaths) { profilep=($profilep -p $p) }
+	}
 	mkdir -p /tmp/veltro/scratch /tmp/veltro/profile-exposure
 	if {~ $profileexposure yes} {
 		# Harness-only vulnerable twin: one additional, explicit read-only
@@ -275,8 +282,15 @@ if {~ $profilewant yes} {
 	}
 	actualpaths=`{cat /tool/paths}
 	for (p in $profilepaths) {
-		pp=`{echo $p | sed 's/:ro$//; s/:rw$//'}
-		if {! ~ $pp $actualpaths} { profilemissing=($profilemissing path:$pp) }
+		pp=`{echo $p | sed 's/:ro$//; s/:rw$//; s/:cow$//'}
+		record=$pp
+		if {! ~ $p $pp} {
+			perm=`{echo $p | sed 's/^.*://'}
+			record=$pp^' '^$perm
+		}
+		if {! grep -s '^'^$record^'$' /tool/paths} {
+			profilemissing=($profilemissing path:$record)
+		}
 	}
 	if {~ $profileexposure yes} {
 		if {! ~ /tmp/veltro/profile-exposure $actualpaths} {
