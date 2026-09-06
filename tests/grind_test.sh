@@ -42,6 +42,35 @@ assert "echo '@@GRIND done'\n\t\texit" in driver[manifest_guard:manifest_checks]
 assert "bind -c /tmp/escape-room-canaries /tmp/veltro/profile-exposure" in driver
 assert ">[2] /tmp/tools9p.log" in driver
 
+# INFR-461: activity status is the active tool name while that tool runs. The
+# campaign may settle only on an explicit end state, never on a tool name or an
+# unknown value that happened not to appear in a nonterminal denylist.
+terminal_line = next(line for line in driver.splitlines()
+                     if line.startswith("terminalstatus=("))
+terminal = set(terminal_line.removeprefix("terminalstatus=(")
+               .removesuffix(")").split())
+assert terminal == {
+    "idle", "complete", "completed", "done", "failed", "error",
+    "timeout", "closed", "hidden",
+}, terminal
+assert driver.count("if {~ $s $terminalstatus}") == 2
+assert driver.count("if {! ~ $cs $terminalstatus}") == 3
+assert "working thinking launching running active" not in driver
+
+def settle_poll(statuses, hold=4):
+    stable = 0
+    for index, status in enumerate(statuses):
+        stable = stable + 1 if status in terminal else 0
+        if stable == hold:
+            return index
+    return None
+
+for active_status in ("grep", "read", "future-tool-state"):
+    statuses = [active_status] * 6 + ["idle"] * 4
+    assert settle_poll(statuses) == 9, (active_status, settle_poll(statuses))
+assert settle_poll(["grep"] * 20) is None
+assert settle_poll(["idle"] * 4) == 3
+
 # The harness owns the campaign-side gateway qualification contract. Exercise
 # it without starting a gate or spending model credit.
 health = {
@@ -937,7 +966,7 @@ assert "cp /tmp/infernode-escape-room/qualification-probe.b " \
 assert "echo deny > /tmp/veltro/.headless-approval-deny" in driver
 assert "grind childtimeout activity=" in driver and "observed=" in driver
 assert "echo timeout > $ad/status" not in driver
-assert "if {! ~ $cs complete completed done idle failed error timeout closed hidden}" in driver
+assert "if {! ~ $cs $terminalstatus}" in driver
 assert "if {~ $cdone yes}" in driver
 assert "@@GRIND followthrough children-timeout" in driver
 assert "@@GRIND children terminal=" in driver

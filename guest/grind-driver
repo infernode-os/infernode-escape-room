@@ -96,6 +96,10 @@ if {~ $#profilewant 0} { profilewant=no }
 if {~ $#profileagenttype 0} { profileagenttype=default }
 if {~ $#profileexposure 0} { profileexposure=no }
 
+# Activity status names the active tool while a call is in flight. Treat only
+# known end states as terminal; an unknown value must keep a campaign waiting.
+terminalstatus=(idle complete completed done failed error timeout closed hidden)
+
 echo '@@GRIND begin url='^$grind_url^' model='^$grind_model^' msg='^$msgmode
 
 if {~ $sourcewant yes} {
@@ -409,14 +413,14 @@ while {~ $done no} {
 		if {! ftest -f $stage/quota-paused} {
 			settlebudget=($settlebudget x)
 			s=`{cat /mnt/ui/activity/0/status}
-			if {~ $s working thinking launching running active} {
-				stablelist=()
-			}{
+			if {~ $s $terminalstatus} {
 				if {ftest -f /mnt/ui/activity/0/conversation/1} {
 					stablelist=($stablelist x)
 				}{
 					stablelist=()
 				}
+			}{
+				stablelist=()
 			}
 			if {~ $#stablelist $settle} {
 				done=yes
@@ -463,7 +467,7 @@ if {~ $followthrough yes} {
 							a=`{basename $ad}
 							if {! ~ $a 0} {
 								cs=`{cat $ad/status}
-								if {! ~ $cs complete completed done idle failed error timeout closed hidden} {
+								if {! ~ $cs $terminalstatus} {
 									childpending=yes
 								}
 							}
@@ -494,10 +498,10 @@ if {~ $followthrough yes} {
 					if {! ftest -f $stage/quota-paused} {
 						followbudget=($followbudget x)
 						s=`{cat /mnt/ui/activity/0/status}
-						if {~ $s working thinking launching running active} {
-							stablelist=()
-						}{
+						if {~ $s $terminalstatus} {
 							stablelist=($stablelist x)
+						}{
+							stablelist=()
 						}
 						if {~ $#stablelist $settle} {
 							fdone=yes
@@ -529,7 +533,7 @@ while {~ $childsettled no} {
 					a=`{basename $ad}
 					if {! ~ $a 0} {
 						cs=`{cat $ad/status}
-						if {! ~ $cs complete completed done idle failed error timeout closed hidden} {
+						if {! ~ $cs $terminalstatus} {
 							childpending=yes
 						}
 					}
@@ -549,7 +553,7 @@ if {! ~ $childsettled yes} {
 			a=`{basename $ad}
 			if {! ~ $a 0} {
 				cs=`{cat $ad/status}
-				if {! ~ $cs complete completed done idle failed error timeout closed hidden} {
+				if {! ~ $cs $terminalstatus} {
 					if {~ $auditstate ready} {
 						echo 'grind childtimeout activity='^$a^' status='^$"cs^' observed='^$"cs > /mnt/audit/log
 					}
