@@ -518,7 +518,7 @@ TRAJECTORY_ACTIVITY = (
     ("tool", re.compile(r"^lucibridge: tool \S+: calling|\bTOOL:\S+?:[a-z_]+:", re.M)),
 )
 
-INEMU_LOGS = ("lucibridge.log", "msgwatch.log")
+INEMU_LOGS = ("lucibridge.log", "msgwatch.log", "tools9p.log")
 # Harvested from the driver's audit working directory — the pre-export state,
 # which after a crash is all there is. venti.data/venti.index are omitted: the
 # driver copies the payload arena into the stage export, which is archived
@@ -1190,14 +1190,14 @@ def run_emu(emu, timeout, gateway_url):
     next_health_poll = t0
     runtime_health = {}
     p = subprocess.Popen(cmd, cwd=str(REPO), stdout=subprocess.PIPE,
-                         stderr=subprocess.STDOUT, bufsize=1, text=True,
+                         stderr=subprocess.STDOUT, bufsize=0,
                          start_new_session=True)
-    lines, done, killed = [], False, False
+    chunks, pending, done, killed = [], b"", False, False
     # Completion signals: emu block-buffers stdout to the pipe, so the tiny
     # trailing "@@GRIND done" can sit unflushed. "@@TRAJLOG end" is the last dump
     # marker and is reliably flushed by the large trajectory cat preceding it —
     # treat either as "the dump is complete, stop and reap emu."
-    END_MARKERS = ("@@GRIND done", "@@TRAJLOG end")
+    end_markers = (b"@@GRIND done", b"@@TRAJLOG end")
     try:
         while True:
             now = time.monotonic()
@@ -1214,29 +1214,44 @@ def run_emu(emu, timeout, gateway_url):
                 if p.poll() is not None:
                     break
                 continue
-            line = p.stdout.readline()
-            if line == "":
+            chunk = os.read(p.stdout.fileno(), 65536)
+            if not chunk:
+                if pending.strip() in end_markers:
+                    done = True
                 break
-            lines.append(line)
-            if line.strip() in END_MARKERS:
+            chunks.append(chunk)
+            records = (pending + chunk).split(b"\n")
+            pending = records.pop()
+            if any(record.strip(b"\r \t") in end_markers for record in records):
                 done = True
                 break
     finally:
         if p.poll() is None:
-            # Reap the whole process group; tolerate the group already being gone
-            # or reparented (killpg can raise ProcessLookupError/PermissionError —
-            # the latter must NOT crash the batch). Fall back to killing the child.
+            # A completion marker proves the driver finished exporting evidence,
+            # so first ask the background service group to stop cleanly. A timeout
+            # has no such boundary and is reaped immediately.
+            stop_signal = signal.SIGTERM if done else signal.SIGKILL
             try:
-                os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+                os.killpg(os.getpgid(p.pid), stop_signal)
             except (ProcessLookupError, PermissionError, OSError):
                 try:
-                    p.kill()
+                    p.terminate() if done else p.kill()
                 except OSError:
                     pass
             try:
                 p.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                pass
+                try:
+                    os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+                except (ProcessLookupError, PermissionError, OSError):
+                    try:
+                        p.kill()
+                    except OSError:
+                        pass
+                try:
+                    p.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    pass
         # The emulator can no longer consume in-guest polling time. Never
         # leave a stale pause signal behind if output parsing or process
         # cleanup raises before the final health observation.
@@ -1245,7 +1260,8 @@ def run_emu(emu, timeout, gateway_url):
     now = time.monotonic()
     try:
         clock.observe(gateway_runtime_health(gateway_url), now)
-        return ("".join(lines), rc, done, (killed and not done),
+        return (b"".join(chunks).decode("utf-8", "replace"), rc, done,
+                (killed and not done),
                 clock.active_elapsed(now), now - t0, clock.events)
     finally:
         clock.clear_pause_marker()

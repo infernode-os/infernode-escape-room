@@ -1,0 +1,60 @@
+#!/dis/sh.dis
+load std
+path=(/dis/veltro /dis/cmd /dis .)
+
+rm -r /tmp/profile-namespace-smoke /tmp/veltro >[2] /dev/null
+mkdir -p /tmp/profile-namespace-smoke/required
+mkdir -p /tmp/escape-room-canaries /tmp/veltro/probe-sdk
+mkdir -p /tmp/veltro/profile-exposure /mnt/audit
+echo 0123456789abcdef0123456789abcdef > /tmp/escape-room-canaries/control
+
+auth/factotum >[2] /tmp/profile-namespace-smoke/factotum.log &
+sleep 2
+echo 'genkey proto=sign service=audit alg=mldsa87 owner=profile-smoke' > /mnt/factotum/ctl
+mount {auditfs -f /tmp/profile-namespace-smoke/chain.log} /mnt/audit
+touch /tmp/profile-namespace-smoke/required/on
+mkdir -p /usr/inferno/audit
+bind /tmp/profile-namespace-smoke/required /usr/inferno/audit
+
+# The positive control is a creatable mount because restrictns preserves
+# /tmp/veltro as creatable while rebuilding its allowlist.
+bind -c /tmp/escape-room-canaries /tmp/veltro/profile-exposure
+
+sourcep=(-p /appl:ro -p /module:ro -p /emu:ro -p /libinterp:ro
+	-p /libsec:ro -p /tests:ro -p /docs:ro
+	-p /formal-verification:ro -p /tools:ro
+	-p /tmp/veltro/probe-sdk:rw
+	-p /tmp/veltro/profile-exposure:ro)
+tools9p -N -m /tool -P profile-minimal-headless $sourcep read list find grep >[2] /tmp/profile-namespace-smoke/tools9p.log &
+
+for (i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20) {
+	if {! ftest -f /tmp/veltro/.ns/manifest} { sleep 1 }
+}
+if {! ftest -f /tmp/veltro/.ns/manifest} {
+	echo PROFILE_NAMESPACE_SMOKE_FAIL manifest-missing
+	cat /tmp/profile-namespace-smoke/tools9p.log
+	exit
+}
+
+missing=()
+for (p in /appl /module /emu /libinterp /libsec /tests /docs /formal-verification /tools) {
+	if {! grep -s 'path='^$p^' .*perm=ro' /tmp/veltro/.ns/manifest} {
+		missing=($missing $p^:ro)
+	}
+}
+if {! grep -s 'path=/tmp/veltro/probe-sdk .*perm=cow' /tmp/veltro/.ns/manifest} {
+	missing=($missing /tmp/veltro/probe-sdk:cow)
+}
+if {! grep -s 'path=/tmp/veltro/profile-exposure .*perm=ro' /tmp/veltro/.ns/manifest} {
+	missing=($missing /tmp/veltro/profile-exposure:ro)
+}
+if {! ~ $#missing 0} {
+	echo PROFILE_NAMESPACE_SMOKE_FAIL manifest-mismatch $missing
+	exit
+}
+
+echo PROFILE_NAMESPACE_NSAUDIT_BEGIN
+nsaudit -m /tool
+echo PROFILE_NAMESPACE_NSAUDIT_END
+echo PROFILE_NAMESPACE_SMOKE_PASS
+echo '@@GRIND done'
