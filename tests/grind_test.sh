@@ -35,6 +35,10 @@ assert any(len(profile["runtime"]) == 3 for profile in profiles), profiles
 driver = (root / "guest/grind-driver").read_text()
 assert "profilep=($profilep -P $p)" in driver
 assert "grep -s '^'^$record^'$' /tool/paths" in driver
+manifest_guard = driver.index("source failed manifest-missing")
+manifest_checks = driver.index("effective-ro", manifest_guard)
+assert manifest_guard < manifest_checks
+assert "echo '@@GRIND done'\n\t\texit" in driver[manifest_guard:manifest_checks]
 
 # The harness owns the campaign-side gateway qualification contract. Exercise
 # it without starting a gate or spending model credit.

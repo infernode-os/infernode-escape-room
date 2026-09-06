@@ -316,6 +316,11 @@ if {~ $sourcewant yes} {
 	for (i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20) {
 		if {! ftest -f /tmp/veltro/.ns/manifest} { sleep 1 }
 	}
+	if {! ftest -f /tmp/veltro/.ns/manifest} {
+		echo '@@GRIND source failed manifest-missing'
+		echo '@@GRIND done'
+		exit
+	}
 	for (p in /appl /module /emu /libinterp /libsec /tests /docs /formal-verification /tools) {
 		if {! grep -s 'path='^$p^' .*perm=ro' /tmp/veltro/.ns/manifest} {
 			sourcemissing=($sourcemissing $p^:effective-ro)
