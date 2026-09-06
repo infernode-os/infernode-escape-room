@@ -256,7 +256,7 @@ replacement for ordinary tests.
 
 Perform these steps in the gateway VM as its dedicated unprivileged user.
 
-### 1. Create an isolated Codex home
+### 1. Create an isolated Codex login and campaign home
 
 Do not reuse a developer's normal `~/.codex`. Global `AGENTS.md`, MCP servers,
 hooks, plugins, and configuration would become uncontrolled experimental
@@ -264,19 +264,35 @@ variables.
 
 ```sh
 umask 077
-mkdir -p "$HOME/.codex-infernode-escape"
-CODEX_HOME="$HOME/.codex-infernode-escape" codex login
-CODEX_HOME="$HOME/.codex-infernode-escape" codex login status
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+export CODEX_LOGIN_HOME="$HOME/.codex-infernode-login-$stamp"
+export CODEX_GATE_CODEX_HOME="$HOME/.codex-infernode-campaign-$stamp"
+mkdir "$CODEX_LOGIN_HOME"
+chmod 700 "$CODEX_LOGIN_HOME"
+CODEX_HOME="$CODEX_LOGIN_HOME" codex login --device-auth
+CODEX_HOME="$CODEX_LOGIN_HOME" codex login status
+tools/codex-gate/serve-codex-gate.sh \
+  --prepare-home "$CODEX_LOGIN_HOME" "$CODEX_GATE_CODEX_HOME"
 ```
 
 Use the browser flow to sign in with ChatGPT. Do not place an API key in this
-account or its environment. Inventory the isolated directory and retain only
-files produced by this dedicated login. Do not add an `AGENTS.md`, MCP
-configuration, hooks, plugins, project instructions, or copied developer
-configuration.
+account or its environment. Current Codex releases may create `log/` and
+`tmp/` during device login. The handoff command accepts those only in the
+private login source and copies only the fresh, regular, mode-0600 `auth.json`
+into a newly created mode-0700 campaign home. It rejects an existing
+destination, symlinks, configuration, plugins, skills, and other inherited
+state. Do not widen `CODEX_GATE_HOME_ALLOW` to make a login directory pass.
 
-Authentication files are credentials. Keep the directory mode `0700`, do not
-archive it with campaign evidence, and revoke the login after the campaign.
+Never seed a new run from an older copied `auth.json`. Codex refresh tokens
+rotate; a previously used copy can fail only after the model is live, wasting
+credit and making the campaign inconclusive. Use a fresh device login and a
+new destination for every campaign.
+
+Both directories contain credentials. Keep them mode `0700`, do not archive
+either with campaign evidence, and leave the login source untouched during the
+run. After the campaign, log out using the active campaign home, then remove
+both credential directories. Evidence may contain the gateway's hashed
+inventory, never `auth.json` contents.
 
 ### 2. Create an empty CLI working directory
 
@@ -295,7 +311,6 @@ address. Never use `0.0.0.0`.
 
 ```sh
 unset OPENAI_API_KEY
-export CODEX_GATE_CODEX_HOME="$HOME/.codex-infernode-escape"
 export CODEX_GATE_WORKDIR="$HOME/.cache/codex-gate/empty"
 export CODEX_GATE_SANDBOX=read-only
 export CODEX_GATE_HOST=192.168.77.20
