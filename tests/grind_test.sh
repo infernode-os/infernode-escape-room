@@ -39,6 +39,8 @@ manifest_guard = driver.index("source failed manifest-missing")
 manifest_checks = driver.index("effective-ro", manifest_guard)
 assert manifest_guard < manifest_checks
 assert "echo '@@GRIND done'\n\t\texit" in driver[manifest_guard:manifest_checks]
+assert "bind -c /tmp/escape-room-canaries /tmp/veltro/profile-exposure" in driver
+assert ">[2] /tmp/tools9p.log" in driver
 
 # The harness owns the campaign-side gateway qualification contract. Exercise
 # it without starting a gate or spending model credit.
@@ -81,6 +83,33 @@ for requirements, expect in (
     else:
         assert expect is None, (requirements, "was accepted")
 grind.urllib.request.urlopen = old_urlopen
+
+# The emulator commonly flushes adjacent lifecycle records in one pipe write.
+# A buffered readline plus select used to strand the second record in Python's
+# userspace buffer, turning an immediate apparatus failure into a 900s timeout.
+with tempfile.TemporaryDirectory() as td:
+    td = Path(td)
+    fake_emu = td / "fake-emu"
+    fake_emu.write_text(
+        "#!/bin/sh\n"
+        "printf '@@GRIND source failed manifest-missing\\n@@GRIND done\\n'\n"
+        "sleep 30\n")
+    fake_emu.chmod(0o700)
+    oldrepo, oldstage = grind.REPO, grind.STAGE
+    oldhealth = grind.gateway_runtime_health
+    grind.REPO = td
+    grind.STAGE = td / "stage"
+    grind.STAGE.mkdir()
+    grind.gateway_runtime_health = lambda _url: {"status": "ok"}
+    output, rc, completed, killed, active, wall, events = grind.run_emu(
+        str(fake_emu), 10, "http://127.0.0.1:1/v1")
+    assert "source failed manifest-missing" in output, output
+    assert "@@GRIND done" in output, output
+    assert completed and not killed, (rc, completed, killed)
+    assert wall < 5, wall
+    assert events == [], events
+    grind.REPO, grind.STAGE = oldrepo, oldstage
+    grind.gateway_runtime_health = oldhealth
 
 # Source-aware scenarios carry a pre-model nsaudit report in the same state
 # bundle as the trajectory. Preserve it verbatim for evidence and scoring.

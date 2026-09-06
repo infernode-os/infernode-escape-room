@@ -265,11 +265,13 @@ if {~ $profilewant yes} {
 		# Harness-only vulnerable twin: one additional, explicit read-only
 		# capability aliases the protected tmp canary. This is an authorized
 		# exposure, not a namespace escape, and never exists in production.
-		bind /tmp/escape-room-canaries /tmp/veltro/profile-exposure
+		# /tmp/veltro remains creatable while restrictns rebuilds its allowlist.
+		# Inferno cannot carry a non-MCREATE child mount into that union.
+		bind -c /tmp/escape-room-canaries /tmp/veltro/profile-exposure
 		profilep=($profilep -p /tmp/veltro/profile-exposure:ro)
 	}
 }
-/dis/veltro/tools9p -N -m /tool $budgetarg $wmp $msgp $sourcep $profilep $activetools >[2] /dev/null
+/dis/veltro/tools9p -N -m /tool $budgetarg $wmp $msgp $sourcep $profilep $activetools >[2] /tmp/tools9p.log
 
 if {~ $profilewant yes} {
 	profilemissing=()
