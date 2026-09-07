@@ -5,7 +5,7 @@ path=(/dis/veltro /dis/cmd /dis .)
 rm -r /tmp/profile-namespace-smoke /tmp/veltro >[2] /dev/null
 mkdir -p /tmp/profile-namespace-smoke/required
 mkdir -p /tmp/escape-room-canaries /tmp/veltro/probe-sdk
-mkdir -p /tmp/veltro/profile-exposure /mnt/audit
+mkdir -p /tmp/veltro/scratch /tmp/veltro/profile-exposure /mnt/audit
 echo 0123456789abcdef0123456789abcdef > /tmp/escape-room-canaries/control
 
 auth/factotum >[2] /tmp/profile-namespace-smoke/factotum.log &
@@ -25,7 +25,7 @@ sourcep=(-p /appl:ro -p /module:ro -p /emu:ro -p /libinterp:ro
 	-p /formal-verification:ro -p /tools:ro
 	-p /tmp/veltro/probe-sdk:rw
 	-p /tmp/veltro/profile-exposure:ro)
-tools9p -N -m /tool -P profile-minimal-headless $sourcep read list find grep >[2] /tmp/profile-namespace-smoke/tools9p.log &
+tools9p -N -m /tool $sourcep read list find grep >[2] /tmp/profile-namespace-smoke/tools9p.log &
 
 for (i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20) {
 	if {! ftest -f /tmp/veltro/.ns/manifest} { sleep 1 }

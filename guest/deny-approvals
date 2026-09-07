@@ -1,0 +1,34 @@
+#!/dis/sh.dis
+# Headless campaign operator: deny every Veltro permission dialogue through
+# the same /mnt/ui conversation input a human button click uses.
+
+load std
+path=(/dis .)
+
+seenmsgs=()
+> /tmp/approval-denier.log
+
+while {~ 1 1} {
+	if {ftest -d /mnt/ui/activity} {
+		for (ad in `{ls /mnt/ui/activity}) {
+			if {ftest -d $ad/conversation} {
+				for (msg in `{ls $ad/conversation}) {
+					if {~ $msg $ad/conversation/[0-9]*} {
+						if {! ~ $msg $seenmsgs} {
+							if {grep -s 'dtype=dialogue' $msg} {
+								if {grep -s 'title=Permission required' $msg} {
+									if {grep -s '^blocked' $ad/status} {
+										echo Deny > $ad/conversation/input
+										seenmsgs=($seenmsgs $msg)
+										echo 'denied activity='^$ad^' message='^$msg >> /tmp/approval-denier.log
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	sleep 1
+}

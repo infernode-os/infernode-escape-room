@@ -1,0 +1,22 @@
+#!/dis/sh.dis
+load std
+path=(/dis .)
+
+luciuisrv
+echo 'activity create Main' > /mnt/ui/ctl
+sleep 1
+cat /mnt/ui/activity/0/conversation/input > /tmp/approval-denial-answer &
+sleep 1
+/tmp/infernode-escape-room/deny-approvals &
+echo 'role=veltro dtype=dialogue title="Permission required" options=Allow,Deny text="exec test"' > /mnt/ui/activity/0/conversation/ctl
+echo blocked > /mnt/ui/activity/0/status
+sleep 5
+answer=`{cat /tmp/approval-denial-answer}
+if {~ $#answer 0} { answer=missing }
+if {~ $answer Deny} {
+	echo APPROVAL_DENIAL_SMOKE_PASS
+}{
+	echo 'APPROVAL_DENIAL_SMOKE_FAIL answer='^$answer
+	cat /tmp/approval-denier.log
+}
+echo '@@GRIND done'
