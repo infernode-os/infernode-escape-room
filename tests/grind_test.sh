@@ -1010,6 +1010,8 @@ assert "@@GRIND children terminal=" in driver
 assert "cat $stage/quota-events > /mnt/audit/log" in driver
 assert "@@QUOTA begin" in driver and "@@QUOTA end" in driver
 assert "@@NSAUDIT-FIXTURE begin" in driver
+assert "nsaudit -m /tests/nsaudit-fixtures/$fixture" in driver
+assert "\n\t\t\tnsaudit /tests/nsaudit-fixtures/$fixture" not in driver
 assert "ls /mnt/ui/activity" in driver
 assert "for (a in 1 2 3 4 5 6 7 8 9)" not in driver
 assert driver.count("if {ftest -f $stage/quota-paused}") == 4
