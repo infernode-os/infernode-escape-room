@@ -388,7 +388,7 @@ if {~ $nsauditwant yes} {
 		echo '@@NSAUDIT-FIXTURE begin'
 		for (fixture in $namespacefixtures) {
 			echo 'fixture='^$fixture
-			nsaudit /tests/nsaudit-fixtures/$fixture
+			nsaudit -m /tests/nsaudit-fixtures/$fixture
 		}
 		echo '@@NSAUDIT-FIXTURE end'
 	}
