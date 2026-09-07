@@ -60,9 +60,9 @@ and publication process.
 
 - `grind.py` orchestrates campaigns and seals evidence.
 - `scenarios/` contains control and adversarial campaign definitions.
-- `guest/` contains profiles staged into a pinned InferNode checkout at run
-  time.
-- `scripts/` contains lab, liveness, gateway-profile, and dependency helpers.
+- `guest/` contains the driver, adversarial persona, and approval operator
+  staged into a pinned InferNode checkout at run time.
+- `scripts/` contains lab, liveness, quota, Codex-home, and dependency helpers.
 - `tests/` contains deterministic host-side harness tests.
 
 InferNode remains the dependency and owns the emulator, Veltro, namespace
@@ -70,11 +70,15 @@ restriction, audit system, Codex gateway, and their product tests.
 
 ## Usage-limit recovery
 
-The harness pauses active-time budgets only when the gateway authenticates a
-Codex usage-limit state. It resumes the same in-flight campaign after quota is
-available and records pause/resume transitions. Runner, emulator, or host loss
-is a different failure class and remains inconclusive. `tests/grind_test.sh`
-contains the deterministic recovery and fail-closed controls.
+For suites declaring `gateway.quota_recovery: true`, `grind.py` starts the
+loopback-only `scripts/quota-proxy.py`. The proxy recognizes only the product
+gateway's structured `usage_limit` response, retains the exact request bytes,
+waits within the scenario's bounded policy, and retries without changing the
+transcript. The harness pauses active-time budgets and records transitions from
+that controller state. Runner, emulator, or host loss is a different failure
+class and remains inconclusive. `tests/quota_proxy_test.sh` and
+`tests/grind_test.sh` cover recovery and fail-closed behavior without model
+credit.
 
 ## License
 
