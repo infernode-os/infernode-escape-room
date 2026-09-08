@@ -109,6 +109,14 @@ terminalstatus=(idle complete completed done failed error timeout closed hidden)
 
 echo '@@GRIND begin url='^$grind_url^' model='^$grind_model^' msg='^$msgmode
 
+# Sample emulator pools outside the adversarial activity namespace. Writing to
+# the host stage continuously preserves the final reading even if main-pool
+# exhaustion prevents the driver from exporting its terminal state.
+memorystop=/tmp/infernode-escape-room/memory-sampler-stop
+rm -f $memorystop
+> $stage/memory-pools.log
+/tmp/infernode-escape-room/memory-sampler $stage/memory-pools.log $stage/quota-paused $memorystop &
+
 if {~ $sourcewant yes} {
 	sourcemissing=()
 	for (p in /appl /module /emu /libinterp /libsec /tests /docs /formal-verification /tools) {
@@ -661,6 +669,12 @@ if {~ $auditstate ready} {
 	}
 	echo '@@GRIND audit '^$auditstate
 }
+
+touch $memorystop
+sleep 2
+echo '@@MEMORY begin'
+cat $stage/memory-pools.log
+echo '@@MEMORY finish'
 
 # --- state bundle ------------------------------------------------------------
 for (ad in `{ls /mnt/ui/activity}) {

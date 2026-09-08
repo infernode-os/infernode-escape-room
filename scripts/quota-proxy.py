@@ -122,11 +122,12 @@ class ProxyServer(http.server.ThreadingHTTPServer):
     allow_reuse_address = True
 
     def __init__(self, address, handler, upstream, max_wait, retry_interval,
-                 state_file):
+                 state_file, heartbeat_interval=60):
         super().__init__(address, handler)
         self.upstream = upstream.rstrip("/")
         self.max_wait = max_wait
         self.retry_interval = retry_interval
+        self.heartbeat_interval = heartbeat_interval
         self.quota_state = QuotaState(state_file)
 
 
@@ -189,7 +190,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 done.set()
 
         threading.Thread(target=fetch, daemon=True).start()
-        while not done.wait(5):
+        while not done.wait(self.server.heartbeat_interval):
             if streaming:
                 self.wfile.write(b": escape-room quota proxy working\n\n")
                 self.wfile.flush()
@@ -203,7 +204,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             left = deadline - time.monotonic()
             if left <= 0:
                 return
-            time.sleep(min(5, left))
+            time.sleep(min(self.server.heartbeat_interval, left))
             if streaming:
                 self.wfile.write(b": escape-room quota paused\n\n")
                 self.wfile.flush()
@@ -272,7 +273,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 delay = quota.get("retry_after")
                 if not isinstance(delay, (int, float)) or delay <= 0:
                     delay = self.server.retry_interval
-                delay = min(float(delay), self.server.max_wait - elapsed)
+                # Provider reset timestamps can remain stale after their stated
+                # time passes. Treat the configured retry interval as a polling
+                # ceiling, not merely a fallback, so one stale response cannot
+                # defer the preserved turn until the whole recovery window ends.
+                delay = min(float(delay), self.server.retry_interval,
+                            self.server.max_wait - elapsed)
                 retry_at = (datetime.datetime.now(datetime.timezone.utc) +
                             datetime.timedelta(seconds=delay)).isoformat()
                 self.server.quota_state.pause(request_id, paused_utc, retry_at)
@@ -297,13 +303,16 @@ def main():
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--max-wait", type=float, default=21600)
     parser.add_argument("--retry-interval", type=float, default=300)
+    parser.add_argument("--heartbeat-interval", type=float, default=60)
     parser.add_argument("--state-file")
     args = parser.parse_args()
-    if args.max_wait <= 0 or args.retry_interval <= 0:
+    if args.max_wait <= 0 or args.retry_interval <= 0 or \
+            args.heartbeat_interval <= 0:
         parser.error("wait intervals must be positive")
 
     server = ProxyServer((args.listen, args.port), Handler, args.upstream,
-                         args.max_wait, args.retry_interval, args.state_file)
+                         args.max_wait, args.retry_interval, args.state_file,
+                         args.heartbeat_interval)
     signal.signal(signal.SIGTERM, lambda *_: threading.Thread(
         target=server.shutdown, daemon=True).start())
     host, port = server.server_address

@@ -223,6 +223,12 @@ When a suite declares `gateway.quota_recovery: true`, `grind.py` starts that
 controller on loopback and points only the in-emulator `llmsrv` at it. The
 product gateway remains stateless and does not retain requests.
 
+Paused streaming responses receive a comment heartbeat once per minute. The
+controller treats the provider's retry timestamp as a bound rather than an
+instruction to sleep until that instant: it retries the preserved request at
+the earlier configured interval, permitting a manual quota reset to take effect
+without restarting any campaign process.
+
 During a live campaign, `grind.py` excludes only controller-authenticated quota
 pauses from the active scenario timeout and signals that state to the
 in-emulator driver. Parent settlement and delegated-child followthrough stop
@@ -235,6 +241,10 @@ unchanged request is retried at the next interval. The outer timeout still
 fails closed if the driver or its marker is tampered with.
 Abrupt runner, emulator, or host loss before the final checkpoint is a
 different failure class and must not be reported as a verified audit bundle.
+Each numbered attempt archives `memory-pools.log`, sampled by a trusted guest
+process outside the adversarial activity namespace. Pool telemetry is
+diagnostic evidence: it can establish when exhaustion developed but cannot by
+itself attribute the allocation or prove containment.
 
 ### Liveness and termination gate
 

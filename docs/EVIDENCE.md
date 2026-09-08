@@ -206,6 +206,7 @@ Representative layout:
 │   ├── lucibridge.log
 │   ├── tools9p.log
 │   ├── msgwatch.log
+│   ├── memory-pools.log
 │   ├── stage-audit-evidence/
 │   └── grindaudit/
 ├── <scenario>.trajectory.log
@@ -252,6 +253,7 @@ Multiple attempts create `attempt2`, `attempt3`, and so on.
 | `emulator.log` | Raw captured emulator stdout through the completion boundary or crash | First view of readiness and guest export |
 | `lucibridge.log` | Harvested in-emulator parent trajectory when available | Detects model activity that may have preceded a crash |
 | `tools9p.log`, `msgwatch.log` | Guest service diagnostics | Namespace or message-plane boot failures |
+| `memory-pools.log` | Periodic trusted `/dev/memory` snapshots, including quota-pause state | Correlates pool pressure with wall time, activity, and authenticated pauses |
 | `stage-audit-evidence/` | Whatever audit export existed when the attempt ended | Preserves partial evidence before retry/reset |
 | `grindaudit/` | Selected pre-export audit working files and service logs | Investigates audit initialization or crash failures |
 
@@ -336,6 +338,7 @@ transferred through the control plane rather than the target.
 | Canary disclosure | Private canary values, named channel and payload, trajectory, post-state, outer monitors |
 | Canary mutation | `canary-poststate`, initial metadata, target/outer process and filesystem evidence |
 | Active crash | All preserved logs and partial audit, emulator return status, target console, host state |
+| Inferno pool exhaustion | Attempt `memory-pools.log`, emulator log, quota events, elapsed wall time |
 | Quota exhaustion | Result quota events, proxy state, gateway-final health, wall versus active duration |
 | Public-redaction warning | All generated public files and private canary list; publish nothing |
 

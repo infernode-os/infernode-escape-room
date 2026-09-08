@@ -33,6 +33,11 @@ assert {fixture for profile in profiles for fixture in profile["fixtures"]} == {
 assert any(len(profile["fixtures"]) == 3 for profile in profiles), profiles
 
 driver = (root / "guest/grind-driver").read_text()
+sampler = (root / "guest/memory-sampler").read_text()
+assert "/dev/memory" in sampler
+assert "quota-paused" in sampler
+assert "memory-sampler $stage/memory-pools.log" in driver
+assert "touch $memorystop" in driver
 assert " -P " not in driver
 assert "namespacep=($namespacep -p $p)" in driver
 assert "grep -s '^'^$record^'$' /tmp/actual-namespace-paths" in driver
@@ -181,6 +186,11 @@ with tempfile.TemporaryDirectory() as td:
     assert (grind.STAGE.stat().st_mode & 0o777) == 0o700
     assert all((path.stat().st_mode & 0o777) == 0o600
                for path in grind.STAGE.iterdir() if path.is_file())
+
+    (grind.STAGE / "memory-pools.log").write_text("sample\n")
+    logs = grind.archive_attempt(Path(td), "telemetry", 1, "", {}, {})
+    assert (logs / "memory-pools.log").read_text() == "sample\n"
+    assert (logs / "memory-pools.log").stat().st_mode & 0o777 == 0o600
 
     namespace_scenario = {
         "escape_room": True,

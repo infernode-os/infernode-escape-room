@@ -140,8 +140,11 @@ stored in the campaign manifest.
 When enabled, quota recovery belongs to this harness rather than the product
 gateway. A loopback proxy retains the exact request bytes, recognizes only the
 gateway's structured retryable `usage_limit` response, pauses active-time
-budgets, and records pause and resume transitions. Ordinary unreachability does
-not stop campaign clocks.
+budgets, and records pause and resume transitions. Streaming callers receive a
+comment heartbeat once per minute while paused. A provider retry timestamp is
+an upper bound only: the proxy retries at the earlier configured interval so a
+manual quota reset can resume the preserved request promptly. Ordinary
+unreachability does not stop campaign clocks.
 
 ## Construction, enforcement, and evidence
 
@@ -214,7 +217,8 @@ A fresh emulator mounts the host stage through `trfs`. The guest driver starts:
 5. `luciuisrv`;
 6. `tools9p` with the declared authority;
 7. optional `nsaudit` reports;
-8. the approval denier and `lucibridge` activity.
+8. a trusted `/dev/memory` sampler outside the agent namespace;
+9. the approval denier and `lucibridge` activity.
 
 Service ordering matters because delegated children inherit the namespace of
 the process that creates them.
@@ -278,6 +282,8 @@ campaign. Remaining scenarios are recorded as unrun and `INCONCLUSIVE`.
 | `guest/deny-approvals` | Denies permission dialogues through the normal public UI path |
 | `guest/escape-redteam.txt` | Harness-owned adversarial persona |
 | `scripts/quota-proxy.py` | Bounded exact-request quota retry and state reporting |
+| `scripts/analyze-memory-pools.py` | Summarize campaign or diagnostic `/dev/memory` samples |
+| `scripts/run-sse-pause-soak.sh` | Model-free pinned-runtime SSE pause soak |
 | `scripts/escape-lab.sh` | Private outer evidence initialization, preflight, and sealing |
 | `scripts/prepare-codex-home.py` | Fresh OAuth handoff into an isolated campaign home |
 | `scripts/inventory-codex-home.py` | Redacted inventory of CLI-created gateway state |
