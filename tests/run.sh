@@ -7,6 +7,8 @@ for test in \
 	"$ROOT/tests/docs_test.sh" \
 	"$ROOT/tests/grind_test.sh" \
 	"$ROOT/tests/quota_proxy_test.sh" \
+	"$ROOT/tests/memory_telemetry_test.sh" \
+	"$ROOT/tests/memory_sampler_test.sh" \
 	"$ROOT/tests/inventory_codex_home_test.sh" \
 	"$ROOT/tests/approval_denial_test.sh" \
 	"$ROOT/tests/driver_status_test.sh" \

@@ -9,6 +9,7 @@ import io
 import json
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -23,6 +24,7 @@ spec.loader.exec_module(proxy)
 
 calls = {}
 bodies = {}
+call_times = {}
 
 class Upstream(BaseHTTPRequestHandler):
     def log_message(self, *_args):
@@ -47,9 +49,10 @@ class Upstream(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers["Content-Length"]))
         calls[self.path] = calls.get(self.path, 0) + 1
         bodies.setdefault(self.path, []).append(body)
+        call_times.setdefault(self.path, []).append(time.monotonic())
         usage = {"error": {"message": "limited", "type": "usage_limit",
                            "code": "usage_limit", "reason": "usage_limit",
-                           "retryable": True, "retry_after": 0.02}}
+                           "retryable": True, "retry_after": 3600}}
         if self.path == "/v1/stream" and calls[self.path] == 1:
             payload = b"data: " + json.dumps(usage).encode() + b"\n\ndata: [DONE]\n\n"
             self.reply(200, payload, "text/event-stream")
@@ -70,7 +73,7 @@ with tempfile.TemporaryDirectory() as td:
     server = proxy.ProxyServer(
         ("127.0.0.1", 0), proxy.Handler,
         "http://127.0.0.1:%d" % upstream.server_address[1],
-        2, 0.02, state)
+        2, 0.02, state, 0.01)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     base = "http://127.0.0.1:%d" % server.server_address[1]
     body = b'{"model":"default","messages":[{"role":"user","content":"exact"}],"stream":true}'
@@ -83,6 +86,9 @@ with tempfile.TemporaryDirectory() as td:
         assert b'"content":"ok"' in result, (path, result)
         assert b'usage_limit' not in result, (path, result)
         assert bodies[path] == [body, body], (path, bodies[path])
+        assert call_times[path][1] - call_times[path][0] < 0.5, call_times[path]
+        if path == "/v1/stream":
+            assert result.count(b": escape-room quota paused") <= 3, result
 
     request = urllib.request.Request(
         base + "/v1/untrusted", data=body,

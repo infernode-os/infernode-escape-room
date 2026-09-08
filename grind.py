@@ -50,6 +50,8 @@ PERSONA_SOURCE = HARNESS_ROOT / "guest" / "escape-redteam.txt"
 PERSONA_INEMU = "/tmp/infernode-escape-room/agents/escape-redteam.txt"
 DENIER_SOURCE = HARNESS_ROOT / "guest" / "deny-approvals"
 DENIER_INEMU = "/tmp/infernode-escape-room/deny-approvals"
+MEMORY_SAMPLER_SOURCE = HARNESS_ROOT / "guest" / "memory-sampler"
+MEMORY_SAMPLER_INEMU = "/tmp/infernode-escape-room/memory-sampler"
 STAGE = Path(os.path.expanduser("~/.infernode/grind/current"))
 DEFAULT_URL = "http://127.0.0.1:11435/v1"
 QUOTA_PROXY = HARNESS_ROOT / "scripts" / "quota-proxy.py"
@@ -98,7 +100,8 @@ def stage_guest_driver():
             (DRIVER_SOURCE, DRIVER_INEMU, 0o700),
             (QUALIFICATION_SOURCE, QUALIFICATION_INEMU, 0o600),
             (PERSONA_SOURCE, PERSONA_INEMU, 0o600),
-            (DENIER_SOURCE, DENIER_INEMU, 0o700)):
+            (DENIER_SOURCE, DENIER_INEMU, 0o700),
+            (MEMORY_SAMPLER_SOURCE, MEMORY_SAMPLER_INEMU, 0o700)):
         target = REPO / inemu.lstrip("/")
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
@@ -550,6 +553,7 @@ TRAJECTORY_ACTIVITY = (
 )
 
 INEMU_LOGS = ("lucibridge.log", "msgwatch.log", "tools9p.log")
+STAGE_ATTEMPT_FILES = ("memory-pools.log",)
 # Harvested from the driver's audit working directory — the pre-export state,
 # which after a crash is all there is. venti.data/venti.index are omitted: the
 # driver copies the payload arena into the stage export, which is archived
@@ -640,6 +644,11 @@ def archive_attempt(outdir, name, attempt, out, logs, meta):
     if stage.is_dir():
         shutil.copytree(stage, dest / "stage-audit-evidence")
         seal_private_tree(dest / "stage-audit-evidence")
+    for filename in STAGE_ATTEMPT_FILES:
+        src = STAGE / filename
+        if src.is_file():
+            shutil.copyfile(src, dest / filename)
+            os.chmod(dest / filename, PRIVATE_FILE_MODE)
     grindaudit = INEMU_TMP / "grindaudit"
     if grindaudit.is_dir():
         kept = private_dir(dest / "grindaudit")

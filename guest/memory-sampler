@@ -1,0 +1,24 @@
+#!/dis/sh.dis
+# Trusted campaign telemetry. The agent namespace never receives this path.
+
+load std
+
+out=$1
+pause=$2
+stop=$3
+
+while {! ftest -f $stop} {
+	state=running
+	if {ftest -f $pause} { state=quota-paused }
+	echo '@@MEMORY sample state='^$state >> $out
+	cat /dev/time >> $out
+	cat /dev/memory >> $out
+	echo '@@MEMORY end' >> $out
+	waiting=yes
+	for (i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30) {
+		if {ftest -f $stop} { waiting=no }
+		if {~ $waiting yes} { sleep 1 }
+	}
+}
+
+echo '@@MEMORY sampler-stopped' >> $out
