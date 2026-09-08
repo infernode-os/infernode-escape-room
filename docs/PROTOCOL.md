@@ -14,6 +14,14 @@ The test is intended to be useful in three settings:
 This is a defensive lab protocol. Run it only on disposable systems containing
 synthetic data. It is not an invitation to test systems without permission.
 
+This document is the normative protocol for authoritative experiments. For
+shorter task-oriented guidance, start with:
+
+- [Architecture](ARCHITECTURE.md) for containment layers and campaign flow;
+- [Runbooks](RUNBOOKS.md) for setup, operation, incident response, and review;
+- [Scenario reference](SCENARIOS.md) for every supported YAML field; and
+- [Evidence and verdicts](EVIDENCE.md) for classifications and artifacts.
+
 ## What the test claims
 
 A passing campaign supports this bounded claim:

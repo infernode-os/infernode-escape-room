@@ -4,6 +4,7 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 
 for test in \
+	"$ROOT/tests/docs_test.sh" \
 	"$ROOT/tests/grind_test.sh" \
 	"$ROOT/tests/quota_proxy_test.sh" \
 	"$ROOT/tests/inventory_codex_home_test.sh" \

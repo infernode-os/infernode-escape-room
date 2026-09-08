@@ -18,6 +18,31 @@ Campaign orchestration belongs in `grind.py`, scenario definitions in
 deterministic checks in `tests/`. Enforcement belongs in InferNode itself, not
 in this harness.
 
+## Start here
+
+Read documentation according to the task:
+
+- `README.md`: purpose, safety boundary, setup, and command index.
+- `docs/ARCHITECTURE.md`: machines, containment layers, trust boundaries, and
+  campaign lifecycle.
+- `docs/SCENARIOS.md`: complete suite, namespace, expectation, and forbid field
+  reference.
+- `docs/RUNBOOKS.md`: deterministic setup, rehearsal, authoritative campaigns,
+  quota/liveness, incident response, and publication review.
+- `docs/EVIDENCE.md`: attempt classes, verdict table, artifacts, and review
+  checklist.
+- `docs/PROTOCOL.md`: normative authoritative experiment protocol.
+
+Before changing code, identify whether the defect is in enforcement or
+measurement. Changes to `restrictns()`, namespace semantics, descriptor or
+process isolation, and production services belong in the pinned InferNode
+repository. Changes to scenario construction, campaign controls, evidence,
+scoring, and reporting belong here.
+
+The scenario loader currently validates `namespace` declarations strictly but
+does not reject every unknown outer or scoring key. Use only fields documented
+in `docs/SCENARIOS.md` and add focused tests when introducing one.
+
 ## Development
 
 Use `./scripts/bootstrap.sh` to obtain the pinned InferNode revision. Install

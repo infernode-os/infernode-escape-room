@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 # grind.py — host orchestrator for the InferNode Escape Room.
 #
-# For each scenario, stage it, boot a fresh headless emu running grind-driver
-# against the live LLM backend (claude-gate by default, or any OpenAI-
-# compatible URL), parse the driver's @@ state bundle, score it against the
-# scenario's expects/forbid checks, and write a Markdown scorecard + JSONL.
+# For each scenario, stage it, boot a fresh headless emulator running
+# grind-driver against an OpenAI-compatible gateway, parse the driver's @@
+# state bundle, verify required evidence, score expects/forbid checks, and
+# write a Markdown scorecard plus JSONL results.
 #
-# One scenario per emu boot = clean-room isolation (no state bleed between
-# scenarios), at the cost of ~30-40s boot each. The backend is a parameter, so
-# the same suite runs against the gate (sonnet/opus/haiku) or a local Ollama
-# model (gpt-oss/mistral) to guard against shared-prompt regressions.
+# One scenario per emulator boot provides clean-room isolation. The baseline
+# and adversarial suites qualify a hardened Codex gateway before model credit
+# is spent; functional suites may target another compatible test backend.
 #
-# Usage:
-#   grind.py [--infernode DIR] [--scenarios FILE] [--model sonnet] [--url URL]
-#            [--only NAME[,NAME...]] [--timeout SECS] [--out DIR] [--keep]
+# Run `python3 grind.py --help` for CLI options. See docs/ARCHITECTURE.md for
+# the campaign lifecycle, docs/SCENARIOS.md for the suite format, and
+# docs/RUNBOOKS.md before operating a live campaign.
 #
 # Stdlib + PyYAML only. No dependency on the offline tests/model-eval harness.
 
