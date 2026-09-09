@@ -23,6 +23,16 @@ def parse(stream):
             samples.append(current)
             continue
         fields = line.split()
+        # Inferno's /dev/time has no trailing newline. Older sampler output
+        # therefore prefixes its value to the first /dev/memory row.
+        if current is not None and len(fields) == 9 and fields[-1] in POOLS:
+            try:
+                int(fields[0])
+            except ValueError:
+                pass
+            else:
+                current["meta"].setdefault("time", fields[0])
+                fields = fields[1:]
         if current is None or len(fields) != 8 or fields[-1] not in POOLS:
             continue
         try:
