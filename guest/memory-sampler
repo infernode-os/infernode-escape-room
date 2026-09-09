@@ -12,6 +12,7 @@ while {! ftest -f $stop} {
 	if {ftest -f $pause} { state=quota-paused }
 	echo '@@MEMORY sample state='^$state >> $out
 	cat /dev/time >> $out
+	echo >> $out
 	cat /dev/memory >> $out
 	echo '@@MEMORY end' >> $out
 	waiting=yes

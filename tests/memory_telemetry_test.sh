@@ -7,7 +7,7 @@ trap 'rm -rf "$work"' EXIT HUP INT TERM
 
 cat > "$work/memory.log" <<'EOF'
 @@MEMORY sample state=running
-       1000       10000        2000          10           4           1        8000 main
+1788881868018087       1000       10000        2000          10           4           1        8000 main
        2000       20000        3000          20           8           1       15000 heap
         300        5000         400           4           2           1        4000 image
 @@MEMORY end
@@ -25,6 +25,7 @@ import sys
 
 value = json.load(open(sys.argv[1]))
 assert value["samples"] == 2, value
+assert value["first_meta"]["time"] == "1788881868018087", value
 assert value["last_meta"]["state"] == "quota-paused", value
 assert value["pools"]["main"]["delta"] == 600, value
 assert value["pools"]["main"]["active_allocations_delta"] == 5, value
