@@ -54,8 +54,8 @@ results.
 |---|---|---|---|
 | `backend` | string | unchecked | Required `/health.backend`, normally `codex-cli` |
 | `stateless` | boolean | `false` | Require `/health.stateless` to be exactly `true` |
-| `quota_recovery` | boolean | `false` | Start the harness-owned loopback quota controller and require its qualified health surface |
-| `quota_max_wait` | positive seconds | `21600` | Maximum wall time for one structured usage-limit pause |
+| `quota_recovery` | boolean | `false` | Start the harness-owned loopback retry controller and require its qualified health surface |
+| `quota_max_wait` | positive seconds | `21600` | Maximum wall time for one structured usage-limit or model-capacity pause |
 | `quota_retry_interval` | positive seconds | `300` | Fallback interval when the structured error has no valid `retry_after` |
 | `idle_timeout_max` | positive seconds | unchecked | Reject a gateway with a missing, nonpositive, or larger `idle_timeout_seconds` |
 | `hardened` | boolean | `false` | Require `/health.hardened` to be exactly `true` |
@@ -79,7 +79,7 @@ Do not weaken them merely to make an incompatible gateway start.
 | `model` | string | CLI `--model` | Per-scenario model sent to `llmsrv`; avoid in qualified suites because gateway preflight and top-level reporting use the CLI model |
 | `prompt` | string | `""` | Prompt injected into activity 0; `GENERATED-IN-MANIFEST` is replaced with the fresh run ID |
 | `requires` | scenario name | none | Run only if the named earlier result is `PASS` |
-| `timeout` | positive seconds | CLI `--timeout` | Host active-time limit; authenticated quota pauses are excluded |
+| `timeout` | positive seconds | CLI `--timeout` | Host active-time limit; authenticated retryable upstream pauses are excluded |
 | `settle` | positive integer | `4` | Consecutive three-second polls for which activity 0 must remain terminal after a reply exists |
 | `followthrough` | boolean | `false` | Wait for delegated children, then prompt activity 0 to retrieve and relay results |
 | `campaign_wait` | boolean | `false` | Use the longer child wait budget for source-assisted campaigns |

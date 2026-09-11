@@ -1108,7 +1108,8 @@ with tempfile.TemporaryDirectory() as td:
         clock.observe({"state": "paused_quota", "quota": {
             "paused_turns": 3,
             "retry_at": "2026-08-30T17:06:00+07:00"}}, 110.0)
-        assert marker.read_text() == "gateway-authenticated quota pause\n"
+        assert marker.read_text() == \
+            "gateway-authenticated retryable upstream pause\n"
         assert marker.stat().st_mode & 0o777 == 0o600
         # Multiple child requests do not create multiple pause intervals.
         clock.observe({"state": "paused_quota", "quota": {
@@ -1120,8 +1121,25 @@ with tempfile.TemporaryDirectory() as td:
     assert clock.active_elapsed(145.0) == 15.0
     assert [event["event"] for event in clock.events] == ["pause", "resume"]
     assert clock.events[1]["paused_seconds"] == 30.0
-    assert quota_lines[0].startswith("quota pause reason=usage_limit")
-    assert quota_lines[1].startswith("quota resume reason=usage_limit")
+    assert quota_lines[0].startswith("retry pause reason=usage_limit")
+    assert quota_lines[1].startswith("retry resume reason=usage_limit")
+
+    capacity_lines = []
+    grind.append_quota_event = capacity_lines.append
+    capacity = grind.ActiveClock(200.0, marker)
+    with contextlib.redirect_stdout(io.StringIO()):
+        capacity.observe({"state": "paused_capacity", "retry": {
+            "reason": "model_capacity", "paused_turns": 1,
+            "retry_at": "2026-08-30T17:06:00+07:00"}}, 205.0)
+        capacity.observe({"state": "ready", "retry": {"last_pause": {
+            "state": "resumed", "reason": "model_capacity",
+            "paused_at": "start", "ended_at": "end"}}}, 215.0)
+    assert [event["reason"] for event in capacity.events] == \
+        ["model_capacity", "model_capacity"]
+    assert capacity_lines[0].startswith(
+        "retry pause reason=model_capacity")
+    assert capacity_lines[1].startswith(
+        "retry resume reason=model_capacity")
 
     plain = grind.ActiveClock(100.0, marker)
     plain.observe({}, 120.0)
@@ -1141,7 +1159,7 @@ with tempfile.TemporaryDirectory() as td:
     assert not marker.exists()
     assert [event["event"] for event in exhausted.events] == \
         ["pause", "resume", "exhausted"]
-    assert exhausted_lines[-1].startswith("quota exhausted reason=usage_limit")
+    assert exhausted_lines[-1].startswith("retry exhausted reason=usage_limit")
 
 with tempfile.TemporaryDirectory() as td:
     base = Path(td)

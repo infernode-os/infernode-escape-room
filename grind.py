@@ -1177,7 +1177,7 @@ def append_quota_event(event):
 
 
 class ActiveClock:
-    """Scenario time excluding intervals codex-gate proves quota-paused.
+    """Scenario time excluding authenticated retryable upstream pauses.
 
     The driver has shorter in-guest settlement budgets so it can export audit
     and canary evidence before the outer timeout reaps the emulator. Mirror the
@@ -1194,7 +1194,8 @@ class ActiveClock:
         self.clear_pause_marker()
 
     def set_pause_marker(self):
-        write_private(self.pause_marker, "gateway-authenticated quota pause\n")
+        write_private(
+            self.pause_marker, "gateway-authenticated retryable upstream pause\n")
 
     def clear_pause_marker(self):
         try:
@@ -1203,23 +1204,25 @@ class ActiveClock:
             pass
 
     def observe(self, health, now):
-        paused = health.get("state") == "paused_quota"
-        quota = health.get("quota") or {}
+        paused = health.get("state") in (
+            "paused_quota", "paused_capacity", "paused_retry")
+        quota = health.get("retry") or health.get("quota") or {}
+        reason = quota.get("reason") or "usage_limit"
         if paused and self.paused_started is None:
             self.paused_started = now
             self.set_pause_marker()
             event = {
-                "event": "pause", "reason": "usage_limit",
+                "event": "pause", "reason": reason,
                 "observed_utc": datetime.datetime.now(
                     datetime.timezone.utc).isoformat(),
                 "paused_turns": int(quota.get("paused_turns") or 0),
                 "retry_at": quota.get("retry_at"),
             }
             self.events.append(event)
-            append_quota_event("quota pause reason=usage_limit observed=" +
+            append_quota_event("retry pause reason=" + reason + " observed=" +
                                event["observed_utc"] + " retry_at=" +
                                str(event["retry_at"] or "unknown"))
-            print("\n[quota pause; active-time clock stopped] ",
+            print("\n[upstream retry pause; active-time clock stopped] ",
                   end="", flush=True)
         elif not paused and self.paused_started is not None:
             duration = now - self.paused_started
@@ -1227,29 +1230,31 @@ class ActiveClock:
             self.paused_started = None
             self.clear_pause_marker()
             event = {
-                "event": "resume", "reason": "usage_limit",
+                "event": "resume", "reason": (quota.get("last_pause") or {}).get(
+                    "reason", reason),
                 "observed_utc": datetime.datetime.now(
                     datetime.timezone.utc).isoformat(),
                 "paused_seconds": round(duration, 3),
             }
             self.events.append(event)
-            append_quota_event("quota resume reason=usage_limit observed=" +
+            append_quota_event("retry resume reason=" + event["reason"] + " observed=" +
                                event["observed_utc"] + " paused_seconds=" +
                                str(event["paused_seconds"]))
-            print("[quota resumed] ", end="", flush=True)
+            print("[upstream retry resumed] ", end="", flush=True)
         last = quota.get("last_pause") or {}
         terminal_key = (last.get("state"), last.get("paused_at"),
                         last.get("ended_at"))
         if last.get("state") == "exhausted" and terminal_key not in self.seen_terminal:
             self.seen_terminal.add(terminal_key)
             event = {
-                "event": "exhausted", "reason": "usage_limit",
+                "event": "exhausted", "reason": last.get(
+                    "reason", "usage_limit"),
                 "observed_utc": datetime.datetime.now(
                     datetime.timezone.utc).isoformat(),
                 "paused_seconds": last.get("duration_seconds"),
             }
             self.events.append(event)
-            append_quota_event("quota exhausted reason=usage_limit observed=" +
+            append_quota_event("retry exhausted reason=" + event["reason"] + " observed=" +
                                event["observed_utc"] + " paused_seconds=" +
                                str(event["paused_seconds"] or "unknown"))
 

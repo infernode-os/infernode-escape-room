@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Loopback OpenAI proxy providing bounded, evidence-visible quota retry."""
+"""Loopback OpenAI proxy providing bounded, evidence-visible retry."""
 
 import argparse
 import datetime
@@ -34,9 +34,9 @@ def read_limited(stream):
     return data
 
 
-def quota_error(status, body):
+def retryable_error(status, body):
     candidates = []
-    if status == 429:
+    if status in (429, 503):
         candidates.append(body)
     if b"data:" in body:
         for line in body.splitlines():
@@ -50,9 +50,10 @@ def quota_error(status, body):
         error = value.get("error") if isinstance(value, dict) else None
         if not isinstance(error, dict):
             continue
-        if error.get("type") != "usage_limit" or \
-                error.get("code") != "usage_limit" or \
-                error.get("reason") != "usage_limit" or \
+        reason = error.get("reason")
+        if reason not in ("usage_limit", "model_capacity") or \
+                error.get("type") != reason or \
+                error.get("code") != reason or \
                 error.get("retryable") is not True:
             continue
         return error
@@ -71,13 +72,27 @@ class QuotaState:
     def _snapshot_locked(self):
         retry = [entry.get("retry_at") for entry in self.paused.values()
                  if entry.get("retry_at")]
+        reasons = sorted(set(entry.get("reason", "usage_limit")
+                             for entry in self.paused.values()))
+        state = "ready"
+        if reasons == ["usage_limit"]:
+            state = "paused_quota"
+        elif reasons == ["model_capacity"]:
+            state = "paused_capacity"
+        elif reasons:
+            state = "paused_retry"
+        recovery = {
+            "paused_turns": len(self.paused),
+            "retry_at": min(retry) if retry else None,
+            "reasons": reasons,
+            "reason": reasons[0] if len(reasons) == 1 else None,
+            "last_pause": self.last_pause,
+        }
         return {
-            "state": "paused_quota" if self.paused else "ready",
-            "quota": {
-                "paused_turns": len(self.paused),
-                "retry_at": min(retry) if retry else None,
-                "last_pause": self.last_pause,
-            },
+            "state": state,
+            "retry": recovery,
+            # Compatibility for consumers of the usage-limit-only contract.
+            "quota": recovery,
         }
 
     def _write_locked(self):
@@ -92,13 +107,15 @@ class QuotaState:
         os.chmod(tmp, 0o600)
         os.replace(tmp, self.state_file)
 
-    def pause(self, request_id, started_at, retry_at):
+    def pause(self, request_id, started_at, retry_at, reason):
         with self.lock:
             entry = self.paused.setdefault(request_id, {
-                "state": "paused_quota",
+                "state": "paused_retry",
                 "paused_at": started_at,
+                "initial_reason": reason,
             })
             entry["retry_at"] = retry_at
+            entry["reason"] = reason
             self._write_locked()
 
     def finish(self, request_id, state):
@@ -109,6 +126,8 @@ class QuotaState:
                     "state": state,
                     "paused_at": entry["paused_at"],
                     "ended_at": utcnow(),
+                    "reason": entry.get("reason", "usage_limit"),
+                    "initial_reason": entry.get("initial_reason", "usage_limit"),
                 }
             self._write_locked()
 
@@ -167,6 +186,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 health = json.loads(body)
                 health.update(self.server.quota_state.snapshot())
                 health["quota_recovery"] = True
+                health["transient_recovery"] = True
                 health["quota_recovery_owner"] = "infernode-escape-room"
                 body = json.dumps(health, sort_keys=True).encode()
                 headers["Content-Type"] = "application/json"
@@ -206,7 +226,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return
             time.sleep(min(self.server.heartbeat_interval, left))
             if streaming:
-                self.wfile.write(b": escape-room quota paused\n\n")
+                self.wfile.write(b": escape-room transient retry paused\n\n")
                 self.wfile.flush()
 
     def do_POST(self):
@@ -240,8 +260,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             while True:
                 status, headers, response = self.fetch_with_heartbeats(
                     body, streaming)
-                quota = quota_error(status, response)
-                if quota is None:
+                retryable = retryable_error(status, response)
+                if retryable is None:
                     if paused_mono is not None:
                         self.server.quota_state.finish(request_id, "resumed")
                     if streaming:
@@ -270,7 +290,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     else:
                         self.send_body(status, headers, response)
                     return
-                delay = quota.get("retry_after")
+                reason = retryable["reason"]
+                delay = retryable.get("retry_after")
                 if not isinstance(delay, (int, float)) or delay <= 0:
                     delay = self.server.retry_interval
                 # Provider reset timestamps can remain stale after their stated
@@ -281,7 +302,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             self.server.max_wait - elapsed)
                 retry_at = (datetime.datetime.now(datetime.timezone.utc) +
                             datetime.timedelta(seconds=delay)).isoformat()
-                self.server.quota_state.pause(request_id, paused_utc, retry_at)
+                self.server.quota_state.pause(
+                    request_id, paused_utc, retry_at, reason)
                 self.wait_retry(delay, streaming)
         except (BrokenPipeError, ConnectionResetError):
             if paused_mono is not None:

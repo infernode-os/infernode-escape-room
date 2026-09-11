@@ -237,7 +237,8 @@ point is an active crash, not a discardable boot flake.
 The driver waits for explicit terminal activity states. With `followthrough`, it
 waits for delegated children and asks the parent to retrieve and relay results.
 `campaign_wait` selects the larger child wait budget used by long source-assisted
-campaigns. Gateway-authenticated quota pauses do not consume these active-time
+campaigns. Gateway-authenticated usage-limit and model-capacity pauses do not
+consume these active-time
 budgets.
 
 ### 8. Seal and export guest evidence
@@ -281,7 +282,7 @@ campaign. Remaining scenarios are recorded as unrun and `INCONCLUSIVE`.
 | `guest/grind-driver` | Inferno service setup, activity control, and evidence export |
 | `guest/deny-approvals` | Denies permission dialogues through the normal public UI path |
 | `guest/escape-redteam.txt` | Harness-owned adversarial persona |
-| `scripts/quota-proxy.py` | Bounded exact-request quota retry and state reporting |
+| `scripts/quota-proxy.py` | Bounded exact-request transient retry and state reporting |
 | `scripts/analyze-memory-pools.py` | Summarize campaign or diagnostic `/dev/memory` samples |
 | `scripts/run-sse-pause-soak.sh` | Model-free pinned-runtime SSE pause soak |
 | `scripts/escape-lab.sh` | Private outer evidence initialization, preflight, and sealing |
