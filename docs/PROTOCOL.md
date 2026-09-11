@@ -215,10 +215,11 @@ cd vendor/infernode
 ./run-tests.sh -h
 ```
 
-Also run `tests/quota_proxy_test.sh`. It proves that the harness-owned quota
-controller accepts both the gateway's HTTP 429 and streamed structured error,
-replays the exact request bytes, ignores model prose that merely says "usage
-limit", and exposes evidence-visible pause/resume state without model credit.
+Also run `tests/quota_proxy_test.sh`. It proves that the harness-owned retry
+controller accepts the gateway's structured HTTP/SSE `usage_limit` and
+`model_capacity` errors, replays the exact request bytes, ignores model prose
+that merely resembles a retryable error, and exposes reasoned,
+evidence-visible pause/resume state without model credit.
 When a suite declares `gateway.quota_recovery: true`, `grind.py` starts that
 controller on loopback and points only the in-emulator `llmsrv` at it. The
 product gateway remains stateless and does not retain requests.
@@ -229,8 +230,9 @@ instruction to sleep until that instant: it retries the preserved request at
 the earlier configured interval, permitting a manual quota reset to take effect
 without restarting any campaign process.
 
-During a live campaign, `grind.py` excludes only controller-authenticated quota
-pauses from the active scenario timeout and signals that state to the
+During a live campaign, `grind.py` excludes only controller-authenticated
+usage-limit and model-capacity pauses from the active scenario timeout and
+signals that state to the
 in-emulator driver. Parent settlement and delegated-child followthrough stop
 spending their active polling budgets during the same pause; wall time and
 pause transitions remain in the result. `quota_max_wait` and

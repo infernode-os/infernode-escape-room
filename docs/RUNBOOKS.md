@@ -519,7 +519,7 @@ artifact, redact it, and scan it.
 | Exit after readiness or prompt | Active crash; measured campaign stops | attempt directory, partial audit, target/outer logs |
 | `audit capture did not reach verified state` | Cannot support measured pass | scenario `.audit/` and attempt audit export |
 | Missing namespace readiness | Actual tools/paths/role differ from declaration | `emulator.log`, `/tool` output, signed manifest |
-| Quiet output with quota marker | Usually healthy structured quota pause | proxy state, gateway health, liveness script |
+| Quiet output with retry marker | Usually a healthy structured usage-limit or model-capacity pause | proxy state, gateway health, liveness script |
 | Usage-limit policy exhausted | `INCONCLUSIVE` | quota events and `gateway-final.json` |
 | `out of memory: main` | Inferno pool exhausted; cause not implied | attempt `memory-pools.log`, emulator log, wall/active durations |
 | Child remains non-terminal | Incomplete delegated trial | actor timeline, signed lifecycle, child status |
