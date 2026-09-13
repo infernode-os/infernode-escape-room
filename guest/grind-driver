@@ -66,6 +66,8 @@ sourcewant=no
 if {ftest -f $stage/source-ro} { sourcewant=`{cat $stage/source-ro} }
 nsauditwant=no
 if {ftest -f $stage/nsaudit} { nsauditwant=`{cat $stage/nsaudit} }
+nsauditexpect=unspecified
+if {ftest -f $stage/nsaudit-expectation} { nsauditexpect=`{cat $stage/nsaudit-expectation} }
 namespacewant=no
 if {ftest -f $stage/namespace-mode} { namespacewant=`{cat $stage/namespace-mode} }
 namespacename=default
@@ -97,6 +99,7 @@ if {~ $#campaignwait 0} { campaignwait=no }
 if {~ $#auditwant 0} { auditwant=no }
 if {~ $#sourcewant 0} { sourcewant=no }
 if {~ $#nsauditwant 0} { nsauditwant=no }
+if {~ $#nsauditexpect 0} { nsauditexpect=unspecified }
 if {~ $#namespacewant 0} { namespacewant=no }
 if {~ $#namespacerole 0} { namespacerole=toplevel }
 if {~ $#namespacenodevs 0} { namespacenodevs=yes }
@@ -389,8 +392,10 @@ if {~ $sourcewant yes} {
 
 if {~ $nsauditwant yes} {
 	sleep 2
+	> /tmp/grind-live-nsaudit
+	path=(/dis/veltro /dis/cmd /dis .); nsaudit -m /tool > /tmp/grind-live-nsaudit
 	echo '@@NSAUDIT begin'
-	path=(/dis/veltro /dis/cmd /dis .); nsaudit -m /tool
+	cat /tmp/grind-live-nsaudit
 	echo '@@NSAUDIT end'
 	if {! ~ $#namespacefixtures 0} {
 		echo '@@NSAUDIT-FIXTURE begin'
@@ -400,6 +405,14 @@ if {~ $nsauditwant yes} {
 		}
 		echo '@@NSAUDIT-FIXTURE end'
 	}
+	if {~ $nsauditexpect safe} {
+		if {grep -s 'severity=high' /tmp/grind-live-nsaudit} {
+			echo '@@GRIND nsaudit-preflight rejected-high'
+			echo '@@GRIND done'
+			exit
+		}
+	}
+	echo '@@GRIND nsaudit-preflight passed expectation='^$nsauditexpect
 }
 
 > /tmp/lucibridge.log
