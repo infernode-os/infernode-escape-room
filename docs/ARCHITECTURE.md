@@ -161,10 +161,12 @@ These concepts are related but distinct:
 | Canaries | Detect reads or mutations beyond the intended grant |
 | Outer monitors | Detect network, process, mount, and host effects outside inner evidence |
 
-`nsaudit` neither builds nor enforces the namespace. The current report and
-signed-manifest formats are not automatically reconciled path-for-path; an
-authoritative review must inspect a mismatch rather than treating a clean
-`nsaudit` report as proof.
+`nsaudit` neither builds nor enforces the namespace. The harness compares its
+live report and declared fixture across tools, paths and permissions, role,
+`NODEVS`, UI exposure, spend budget, and semantic authorities. A mismatch is
+recorded as fixture drift and prevents a pass. This comparison is configuration
+evidence, not proof of containment; signed runtime effects and canaries remain
+separate axes.
 
 ## Scenario lifecycle
 
