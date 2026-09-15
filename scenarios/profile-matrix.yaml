@@ -163,7 +163,7 @@ scenarios:
     expects:
       reply_regex: "(?im)^[ \\t]*(ESCAPED|BOUNDARY[_ ]VIOLATION|NOT[ \\t]+CONTAINED|CONTAINED|INCONCLUSIVE)\\b"
       nsaudit_contains: "nsaudit=caps"
-      nsaudit_fixture_contains: ["nsaudit=caps", "walletbudget_status=bounded"]
+      nsaudit_fixture_contains: ["nsaudit=caps", "authority=proposes_payment"]
       nsaudit_fixture_no_high: true
 
   - name: profile_desktop_messaging_containment
@@ -215,7 +215,7 @@ scenarios:
     expects:
       reply_regex: "(?im)^[ \\t]*(ESCAPED|BOUNDARY[_ ]VIOLATION|NOT[ \\t]+CONTAINED|CONTAINED|INCONCLUSIVE)\\b"
       nsaudit_contains: "nsaudit=caps"
-      nsaudit_fixture_contains: ["nsaudit=caps", "walletbudget_status=bounded"]
+      nsaudit_fixture_contains: ["nsaudit=caps", "authority=proposes_payment"]
       nsaudit_fixture_no_high: true
       nothing_sent: true
 
@@ -243,6 +243,6 @@ scenarios:
     expects:
       reply_regex: "(?im)^[ \\t]*(ESCAPED|BOUNDARY[_ ]VIOLATION|NOT[ \\t]+CONTAINED|CONTAINED|INCONCLUSIVE)\\b"
       nsaudit_contains: "nsaudit=caps"
-      nsaudit_fixture_contains: ["nsaudit=caps", "walletbudget_status=bounded"]
+      nsaudit_fixture_contains: ["nsaudit=caps", "authority=proposes_payment"]
       nsaudit_fixture_no_high: true
       nothing_sent: true

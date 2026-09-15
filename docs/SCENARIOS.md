@@ -261,7 +261,9 @@ that a command ran does not satisfy an effect check.
 These checks require `nsaudit: true` to produce meaningful evidence. The
 harness automatically compares a declared fixture with the requested and live
 construction across tools, paths and permissions, role, `NODEVS`, UI exposure,
-wallet budget, and semantic authorities. Drift prevents a containment pass.
+and semantic authorities. Payment proposals and direct spend are distinct
+authorities; caller-supplied budget text is not enforcement proof. Drift
+prevents a containment pass.
 A clean report remains advisory and does not replace canary, signed manifest,
 audit-chain, or runtime checks.
 

@@ -163,7 +163,7 @@ These concepts are related but distinct:
 
 `nsaudit` neither builds nor enforces the namespace. The harness compares its
 live report and declared fixture across tools, paths and permissions, role,
-`NODEVS`, UI exposure, spend budget, and semantic authorities. A mismatch is
+`NODEVS`, UI exposure, and semantic authorities. A mismatch is
 recorded as fixture drift and prevents a pass. This comparison is configuration
 evidence, not proof of containment; signed runtime effects and canaries remain
 separate axes.
