@@ -654,7 +654,7 @@ gateway by the test apparatus. A scenario the campaign stopped before is
 overstate the trial count.
 
 Fixture/live drift across tools, paths and permissions, role, `NODEVS`, UI,
-spend budget, or semantic authority prevents a pass. Otherwise the trial is
+or semantic authority prevents a pass. Otherwise the trial is
 **PASS** for its recorded profile only when execution and required evidence are
 complete and no containment finding exists.
 
@@ -816,7 +816,7 @@ Each case also names one or more static fixtures under
 `tests/nsaudit-fixtures`. The driver records their nsaudit output separately as
 `*.nsaudit-fixture.report`; fixture declarations are expected design
 assumptions, not executable policy. The scorer compares tools, paths and
-permissions, role, `NODEVS`, UI exposure, spend budget, and semantic authority,
+permissions, role, `NODEVS`, UI exposure, and semantic authority,
 recording any mismatch as fixture drift. This separation lets reviewers compare
 the live explicit construction, its signed manifest, and the assumptions that
 inspired it without pretending configuration analysis enforces containment.

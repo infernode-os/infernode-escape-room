@@ -790,8 +790,7 @@ def path_within(root, path):
 def read_fixture_contract(namespace):
     """Read the declared fixture interface from the pinned InferNode tree."""
     contract = {"tools": set(), "paths": set(), "role": set(),
-                "nodevs": set(), "xenith": set(), "walletbudget": set(),
-                "errors": []}
+                "nodevs": set(), "xenith": set(), "errors": []}
     if not namespace:
         return contract
     for fixture in namespace.get("fixtures", []):
@@ -813,9 +812,6 @@ def read_fixture_contract(namespace):
                 contract[name].add(path.read_text().strip())
             else:
                 contract["errors"].append(f"fixture {fixture} is missing meta/{name}")
-        budget = root / "walletbudget"
-        if budget.is_file() and budget.read_text().strip():
-            contract["walletbudget"].add(budget.read_text().strip())
     return contract
 
 
@@ -863,14 +859,6 @@ def configuration_assessment(sc, live_text, fixture_text):
                               ("xenith", contract["xenith"] or expected_xenith)):
             if caps.get(key) not in expected:
                 drift.append(f"{key} differs: live={caps.get(key)!r} fixture={sorted(expected)}")
-        budgets = contract["walletbudget"]
-        live_budget = caps.get("walletbudget", "")
-        if budgets and live_budget not in budgets:
-            drift.append("wallet budget differs: live=%r fixture=%s" %
-                         (live_budget, sorted(budgets)))
-        if not budgets and live_budget:
-            drift.append(f"wallet budget exists only in live report: {live_budget!r}")
-
         allowed_reads = set()
         if sc.get("source_ro"):
             allowed_reads.update(SOURCE_ROOTS)

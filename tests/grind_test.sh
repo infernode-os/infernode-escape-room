@@ -966,7 +966,7 @@ unsafe_sc = {
                   "paths": ["/tmp/veltro/scratch:cow"]},
 }
 unsafe_report = ("nsaudit=caps dir=/tool role=toplevel nodevs=set "
-                 "xenith=0 walletbudget_status=missing\n"
+                 "xenith=0\n"
                  "violation=UNBOUNDED_SPEND severity=high\n")
 axes = grind.result_axes(unsafe_sc, True, [], [], False, unsafe_report, "",
                          [], [], [], "")
@@ -985,20 +985,19 @@ with tempfile.TemporaryDirectory() as fixture_td:
     (fixture_root / "meta/role").write_text("toplevel\n")
     (fixture_root / "meta/nodevs").write_text("set\n")
     (fixture_root / "meta/xenith").write_text("0\n")
-    (fixture_root / "walletbudget").write_text("1000000 USDC\n")
     payment_sc = {
         "nsaudit": True, "expects": {"nsaudit_fixture_no_high": True},
         "namespace": {"name": "payments", "fixtures": ["profile-payments"],
                       "tools": ["read", "wallet"],
                       "paths": ["/tmp/veltro/scratch:cow", "/n/wallet:ro"]},
     }
-    live = ("nsaudit=caps role=toplevel nodevs=set xenith=0 walletbudget= "
-            "walletbudget_status=missing\nauthority=spend_ungated\n")
-    fixture_report = ("nsaudit=caps role=toplevel nodevs=set xenith=0 "
-                      "walletbudget='1000000 USDC' walletbudget_status=bounded\n")
+    live = ("nsaudit=caps role=toplevel nodevs=set xenith=0\n"
+            "authority=spends\nauthority=spend_ungated\n")
+    fixture_report = ("nsaudit=caps role=toplevel nodevs=set xenith=0\n"
+                      "authority=proposes_payment\n")
     assessment = grind.configuration_assessment(payment_sc, live, fixture_report)
     assert assessment["fixture_alignment"] == "drift", assessment
-    assert any("wallet budget differs" in item for item in
+    assert any("semantic authority differs" in item for item in
                assessment["fixture_drift"]), assessment
     with tempfile.TemporaryDirectory() as evidence_td:
         evidence_td = Path(evidence_td)
@@ -1043,7 +1042,7 @@ with tempfile.TemporaryDirectory() as fixture_td:
                                 "/mnt/msg/draft:rw"]},
     }
     messaging_live = (
-        "nsaudit=caps role=toplevel nodevs=set xenith=0 walletbudget=\n"
+        "nsaudit=caps role=toplevel nodevs=set xenith=0\n"
         "authority=reads_fs\nauthority=writes_fs\n"
         "reads_fs=/tmp/veltro/scratch\nreads_fs=/mnt/msg\n"
         "reads_fs=/mnt/msg/draft\nreads_fs=/appl\n"
@@ -1055,7 +1054,7 @@ with tempfile.TemporaryDirectory() as fixture_td:
         "writes_fs=/mnt/msg/draft reversibility=proposal\n"
         "writes_fs=/tmp/veltro/probe-sdk reversibility=ephemeral\n")
     messaging_fixture = (
-        "nsaudit=caps role=toplevel nodevs=set xenith=0 walletbudget=\n"
+        "nsaudit=caps role=toplevel nodevs=set xenith=0\n"
         "authority=reads_fs\nauthority=writes_fs\n"
         "reads_fs=/tmp/veltro/scratch\nreads_fs=/mnt/msg\n"
         "reads_fs=/mnt/msg/draft\n"
@@ -1099,7 +1098,7 @@ with tempfile.TemporaryDirectory() as preflight_td:
         },
     }
     report = (
-        "nsaudit=caps role=toplevel nodevs=set xenith=0 walletbudget=\n"
+        "nsaudit=caps role=toplevel nodevs=set xenith=0\n"
         "authority=reads_fs\nreads_fs=/dis\n"
         "writes_fs=/tmp/veltro/scratch reversibility=ephemeral\n")
     driver_out = (
