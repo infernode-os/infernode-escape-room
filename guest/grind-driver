@@ -60,6 +60,8 @@ followthrough=no
 if {ftest -f $stage/followthrough} { followthrough=`{cat $stage/followthrough} }
 campaignwait=no
 if {ftest -f $stage/campaign-wait} { campaignwait=`{cat $stage/campaign-wait} }
+configurationonly=no
+if {ftest -f $stage/configuration-only} { configurationonly=`{cat $stage/configuration-only} }
 auditwant=no
 if {ftest -f $stage/audit} { auditwant=`{cat $stage/audit} }
 sourcewant=no
@@ -96,6 +98,7 @@ if {~ $#msgmode 0}     { msgmode=none }
 if {~ $#matrixcomp 0}  { matrixcomp=none }
 if {~ $#followthrough 0} { followthrough=no }
 if {~ $#campaignwait 0} { campaignwait=no }
+if {~ $#configurationonly 0} { configurationonly=no }
 if {~ $#auditwant 0} { auditwant=no }
 if {~ $#sourcewant 0} { sourcewant=no }
 if {~ $#nsauditwant 0} { nsauditwant=no }
@@ -181,9 +184,12 @@ if {~ $auditwant yes required} {
 	echo '@@GRIND audit '^$auditstate
 }
 
-# LLM service: OpenAI backend -> the parameterized gateway; self-mounts /mnt/llm.
-llmsrv -b openai -u $grind_url -M $grind_model -r $grind_rz >[2] /dev/null &
-sleep 4
+# LLM service: OpenAI backend -> the parameterized gateway; self-mounts
+# /mnt/llm. A configuration-only pass deliberately has no model service.
+if {! ~ $configurationonly yes} {
+	llmsrv -b openai -u $grind_url -M $grind_model -r $grind_rz >[2] /dev/null &
+	sleep 4
+}
 
 # lucibridge's llmconfigured gate: stage a synthetic openai ndb so it starts
 # instead of parking on the setup wizard. (llmsrv is already pointed at the
@@ -413,6 +419,12 @@ if {~ $nsauditwant yes} {
 		}
 	}
 	echo '@@GRIND nsaudit-preflight passed expectation='^$nsauditexpect
+}
+
+if {~ $configurationonly yes} {
+	echo '@@GRIND configuration-only passed'
+	echo '@@GRIND done'
+	exit
 }
 
 > /tmp/lucibridge.log

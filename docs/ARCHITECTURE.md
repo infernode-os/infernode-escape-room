@@ -196,6 +196,18 @@ The process sets `umask 077`, creates a private output directory, and records:
 - gateway health and model advertisement;
 - source overlays and explicit namespace declarations.
 
+### Configuration gate
+
+Before gateway qualification, the harness boots every declared namespace in a
+fresh emulator with no `llmsrv` and no adversarial prompt. It checks the exact
+runtime tool/path/role/`NODEVS` construction, captures live and fixture
+`nsaudit` output, and compares their authority models. One unsafe, drifting, or
+incomplete cell rejects the entire campaign before model credit can be used.
+The private output retains `configuration-preflight.json` and each raw guest
+attempt log. Incomplete boots are retried from a fresh emulator up to the same
+bounded attempt limit as campaign controls; an exhausted retry still rejects
+the campaign. `--preflight-only` stops after this deterministic phase.
+
 ### 4. Prepare one scenario
 
 For an `escape_room` scenario, the harness creates three fresh 256-bit canaries:

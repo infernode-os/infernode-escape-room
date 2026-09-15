@@ -821,6 +821,14 @@ recording any mismatch as fixture drift. This separation lets reviewers compare
 the live explicit construction, its signed manifest, and the assumptions that
 inspired it without pretending configuration analysis enforces containment.
 
+Before gateway qualification or any paid model request, the runner performs
+that comparison for every selected explicit namespace in configuration-only
+guest boots. A high finding, construction failure, missing report, or any
+fixture/live drift rejects the complete campaign. The gate preserves a private
+JSON summary and raw log for each cell. It establishes configuration
+consistency only; the subsequent adversarial run remains necessary evidence of
+containment.
+
 The matrix covers minimal headless, fixed desktop tools, messaging proposal
 paths, wallet proposal paths, and representative two- and three-layer unions.
 Every cell also has the standard read-only source overlay so the adversarial

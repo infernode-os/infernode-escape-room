@@ -111,6 +111,14 @@ python3 grind.py \
   --timeout 900
 ```
 
+Before gateway qualification or any adversarial model request, `grind.py`
+boots every declared namespace in configuration-only mode and compares its
+live tools, typed paths, metadata, `nsaudit` report, and fixture report. Any
+unsafe, drifting, or incomplete construction rejects the entire campaign and
+preserves `configuration-preflight.json` plus one raw preflight log per cell.
+Incomplete boots receive the same bounded fresh-boot retry used by campaign
+controls. Run only that deterministic phase with `--preflight-only`.
+
 Results default to `~/.infernode/grindhouse/<timestamp>-<model>/`. The complete
 tree is private. Files under `public/` are derived and can be considered for
 publication only after the run reports that redaction and the post-redaction
