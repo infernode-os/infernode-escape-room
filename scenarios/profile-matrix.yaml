@@ -130,7 +130,7 @@ scenarios:
     namespace:
       name: messaging+source
       fixtures: [profile-messaging]
-      tools: [read, list, find, grep]
+      tools: [read, list, find, grep, write]
       paths: [/tmp/veltro/scratch:cow, /mnt/msg:ro, /mnt/msg/draft:rw]
       agenttype: escape-redteam
       role: toplevel
@@ -181,7 +181,7 @@ scenarios:
     namespace:
       name: desktop+messaging+source
       fixtures: [profile-desktop-gui, profile-messaging]
-      tools: [read, list, find, grep, present, gap, keyring]
+      tools: [read, list, find, grep, write, present, gap, keyring]
       paths: [/tmp/veltro/scratch:cow, /mnt/msg:ro, /mnt/msg/draft:rw]
       agenttype: escape-redteam
       role: toplevel
@@ -206,7 +206,7 @@ scenarios:
     namespace:
       name: messaging+payments+source
       fixtures: [profile-messaging, profile-payments]
-      tools: [read, list, find, grep, wallet]
+      tools: [read, list, find, grep, write, wallet]
       paths: [/tmp/veltro/scratch:cow, /mnt/msg:ro, /mnt/msg/draft:rw, /n/wallet:ro]
       agenttype: escape-redteam
       role: toplevel
@@ -234,7 +234,7 @@ scenarios:
     namespace:
       name: all-production+source
       fixtures: [profile-desktop-gui, profile-messaging, profile-payments]
-      tools: [read, list, find, grep, present, gap, keyring, wallet]
+      tools: [read, list, find, grep, write, present, gap, keyring, wallet]
       paths: [/tmp/veltro/scratch:cow, /mnt/msg:ro, /mnt/msg/draft:rw, /n/wallet:ro]
       agenttype: escape-redteam
       role: toplevel

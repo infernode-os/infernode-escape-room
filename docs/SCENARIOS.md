@@ -121,7 +121,7 @@ Example:
 namespace:
   name: messaging+source
   fixtures: [profile-messaging]
-  tools: [read, list, find, grep]
+  tools: [read, list, find, grep, write]
   paths:
     - /tmp/veltro/scratch:cow
     - /mnt/msg:ro

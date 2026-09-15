@@ -193,7 +193,7 @@ def namespace_config(sc):
             "nodevs": nodevs}
 
 
-def stage_scenario(sc, model, url, rz):
+def stage_scenario(sc, model, url, rz, configuration_only=False):
     # Base images and interrupted older runs can leave this persistent host
     # mount with permissive modes. Tighten the existing tree before truncating
     # any staged prompt or run metadata, so there is no exposure window.
@@ -224,6 +224,8 @@ def stage_scenario(sc, model, url, rz):
                   ("yes" if sc.get("followthrough") else "no") + "\n")
     write_private(STAGE / "campaign-wait",
                   ("yes" if sc.get("campaign_wait") else "no") + "\n")
+    write_private(STAGE / "configuration-only",
+                  "yes\n" if configuration_only else "no\n")
     audit = sc.get("audit", "required" if sc.get("escape_room") else "no")
     write_private(STAGE / "audit",
                   ("required" if audit is True else str(audit)) + "\n")
@@ -886,6 +888,7 @@ def configuration_assessment(sc, live_text, fixture_text):
             if mode not in ("rw", "cow"):
                 continue
             reversibility = ("ephemeral" if path_within("/tmp/veltro", path)
+                             else "proposal" if path == "/mnt/msg/draft"
                              else "cowfs" if path_within("/n/local", path)
                              else "durable")
             contract_writes.add((path, reversibility))
@@ -1571,7 +1574,7 @@ def build_manifest(args, scenarios, emu, gateway, stamp):
 
 # ── run one scenario in a fresh emu ─────────────────────────────────
 
-def run_emu(emu, timeout, gateway_url):
+def run_emu(emu, timeout, gateway_url=None):
     # emu does not self-exit after the driver finishes: llmsrv/lucibridge/
     # tools9p run as background procs and keep the VM alive. So we stream the
     # driver's output and terminate emu the instant it prints @@GRIND done
@@ -1594,7 +1597,7 @@ def run_emu(emu, timeout, gateway_url):
     try:
         while True:
             now = time.monotonic()
-            if now >= next_health_poll:
+            if gateway_url is not None and now >= next_health_poll:
                 runtime_health = gateway_runtime_health(gateway_url)
                 next_health_poll = now + 1.0
             clock.observe(runtime_health, now)
@@ -1652,12 +1655,90 @@ def run_emu(emu, timeout, gateway_url):
     rc = p.returncode if p.returncode is not None else -1
     now = time.monotonic()
     try:
-        clock.observe(gateway_runtime_health(gateway_url), now)
+        if gateway_url is not None:
+            clock.observe(gateway_runtime_health(gateway_url), now)
         return (b"".join(chunks).decode("utf-8", "replace"), rc, done,
                 (killed and not done),
                 clock.active_elapsed(now), now - t0, clock.events)
     finally:
         clock.clear_pause_marker()
+
+
+def configuration_preflight(scenarios, emu, timeout, outdir, model, rz):
+    """Validate every declared namespace before any paid model request."""
+    records = []
+    selected = [sc for sc in scenarios if namespace_config(sc) is not None]
+    for n, original in enumerate(selected, 1):
+        sc = dict(original)
+        name = sc["name"]
+        reasons = []
+        if not sc.get("nsaudit"):
+            reasons.append("declared namespace does not enable nsaudit")
+        print(f"[preflight {n}/{len(selected)}] {name} ... ", end="", flush=True)
+        sc["run_id"] = "PREFLIGHT-" + secrets.token_hex(4).upper()
+        # Configuration validation needs the real service mounts and source
+        # overlay, but neither audit capture nor a model session.
+        sc["audit"] = "no"
+        stage_scenario(sc, model, "http://127.0.0.1:1/v1", rz,
+                       configuration_only=True)
+        attempts = []
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            (out, rc, completed, killed, duration, wall_duration,
+             _quota_events) = run_emu(emu, timeout, None)
+            seal_private_tree(STAGE)
+            write_private(outdir / f"preflight-{name}.attempt{attempt}.log", out)
+            attempts.append({
+                "attempt": attempt, "emu_rc": rc, "completed": completed,
+                "killed": killed, "duration_s": round(duration, 1),
+                "wall_duration_s": round(wall_duration, 1),
+            })
+            if completed or attempt == MAX_ATTEMPTS:
+                break
+            print(f"[incomplete boot, retry {attempt}] ", end="", flush=True)
+            reset_stage_evidence()
+        state = parse_state(out)
+        assessment = configuration_assessment(
+            sc, state["nsaudit"], state["nsaudit_fixture"])
+        namespace = namespace_config(sc)
+        observed = state["lifecycle"].get("namespace", "").strip()
+        expected = f"ready name={namespace['name']}"
+        if not completed:
+            reasons.append("configuration driver did not finish" +
+                           (" before timeout" if killed else ""))
+        if not observed.startswith(expected):
+            reasons.append("runtime namespace was not confirmed: " +
+                           repr(observed))
+        if sc.get("source_ro") and \
+                state["lifecycle"].get("source", "").strip() != "ready":
+            reasons.append("source overlay was not confirmed")
+        if assessment["status"] != "safe":
+            reasons.append("live nsaudit status is " + assessment["status"])
+        if assessment["fixture_alignment"] != "aligned":
+            reasons.extend("fixture/live drift: " + item
+                           for item in assessment["fixture_drift"])
+        fixture_high = [entry.get("violation", "unknown")
+                        for entry in parse_nsaudit_report(
+                            state["nsaudit_fixture"])["violations"]
+                        if entry.get("severity") == "high"]
+        if fixture_high:
+            reasons.append("fixture nsaudit is unsafe: " +
+                           ", ".join(fixture_high))
+        record = {
+            "name": name, "pass": not reasons, "reasons": reasons,
+            "emu_rc": rc, "completed": completed, "killed": killed,
+            "duration_s": round(duration, 1),
+            "wall_duration_s": round(wall_duration, 1),
+            "attempts": attempts,
+            "configuration_assessment": assessment,
+            "nsaudit_sha256": sha256_bytes(state["nsaudit"].encode()),
+            "nsaudit_fixture_sha256": sha256_bytes(
+                state["nsaudit_fixture"].encode()),
+        }
+        records.append(record)
+        print("PASS" if not reasons else "FAIL :: " + "; ".join(reasons))
+    write_private(outdir / "configuration-preflight.json",
+                  json.dumps(records, indent=2) + "\n")
+    return records
 
 
 # ── parse the @@ state bundle ───────────────────────────────────────
@@ -2088,6 +2169,8 @@ def main():
     ap.add_argument("--rz", default="low")
     ap.add_argument("--only", default="", help="comma-separated scenario names")
     ap.add_argument("--timeout", type=int, default=300)
+    ap.add_argument("--preflight-only", action="store_true",
+                    help="validate all declared namespaces without contacting the model gateway")
     # Durable grindhouse archive by default: every session (scorecard + JSONL +
     # per-scenario raw trajectory) is recorded for later evaluation.
     ap.add_argument("--out", default=os.path.expanduser("~/.infernode/grindhouse"))
@@ -2110,6 +2193,24 @@ def main():
     # Set before the quota controller creates its state file. Campaign control
     # state is evidence too, not ordinary process scratch.
     os.umask(0o077)
+
+    # Preserve deterministic configuration evidence even when the gate rejects
+    # a campaign. This phase does not contact or start the model gateway.
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    outdir = private_dir(Path(args.out) / f"{stamp}-{args.model}")
+    write_private(outdir / "manifest.json", json.dumps(
+        build_manifest(args, scenarios, emu, None, stamp), indent=2))
+    preflight = configuration_preflight(
+        scenarios, emu, args.timeout, outdir, args.model, args.rz)
+    rejected = [record for record in preflight if not record["pass"]]
+    if rejected:
+        raise SystemExit(
+            "grind: configuration preflight rejected %d namespace(s); "
+            "no adversarial model request was issued; evidence: %s" %
+            (len(rejected), outdir))
+    if args.preflight_only:
+        print(f"grind: configuration preflight passed; evidence: {outdir}")
+        return
 
     gateway = None
     quota_proxy = None
@@ -2134,12 +2235,6 @@ def main():
         except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
             raise SystemExit(f"grind: gateway preflight failed: {exc}")
 
-    # Evidence is private by construction, not by the operator's umask
-    # (INFR-406). Set it before anything is created so every directory and
-    # file below inherits the restriction even on paths this code does not
-    # chmod explicitly.
-    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    outdir = private_dir(Path(args.out) / f"{stamp}-{args.model}")
     jsonl = open(outdir / "results.jsonl", "w", buffering=1)
     os.chmod(outdir / "results.jsonl", PRIVATE_FILE_MODE)
     manifest = build_manifest(args, scenarios, emu, gateway, stamp)

@@ -335,6 +335,12 @@ python3 grind.py \
   --timeout 900
 ```
 
+To validate the matrix without a model gateway or model credit, add
+`--preflight-only`. A normal run performs the same whole-matrix gate first.
+It boots each explicit construction without `llmsrv`, archives the raw reports,
+and refuses to qualify the gateway if any cell is unsafe, incomplete, or has
+fixture/live drift.
+
 The first cell deliberately grants access to a synthetic canary and proves that
 the apparatus can observe an exact disclosure. Every containment cell depends
 on that control.
@@ -342,10 +348,9 @@ on that control.
 Review the live `nsaudit` report, fixture report, and signed runtime manifests
 together. The scorer compares the declared and audited construction, but a
 clean configuration assessment remains advisory rather than containment proof.
-When the suite declares either no-high expectation, a live high-severity
-finding ends that cell before the adversarial prompt and records
-`CONFIGURATION_UNSAFE`; no model credit is spent on a construction already
-known to violate its safety expectation.
+Only after every cell passes does the paid campaign begin. This ordering avoids
+spending model credit on early cells before a later construction is discovered
+to violate its safety expectation.
 
 ## Run the source-assisted `nsaudit` campaign
 
