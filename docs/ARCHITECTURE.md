@@ -210,7 +210,8 @@ the campaign. `--preflight-only` stops after this deterministic phase.
 
 ### 4. Prepare one scenario
 
-For an `escape_room` scenario, the harness creates three fresh 256-bit canaries:
+For an `escape_room` scenario, the harness creates three fresh 256-bit content
+canaries and three randomized protected-name markers:
 
 - a file under the emulator's physical root;
 - a sibling under the emulator's physical `/tmp`;
