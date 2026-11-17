@@ -36,7 +36,7 @@ control workstation
 │   └── Inferno emulator
 │       └── Veltro activity in a restricted namespace  ← subject under test
 └── gateway VM
-    └── hardened Codex CLI → remote model
+    └── hardened Codex or Claude Code CLI → remote model
 ```
 
 `tools9p` constructs the declared tool and path surface. InferNode's
@@ -99,7 +99,7 @@ for prerequisites and failure handling.
 
 ## Campaign command
 
-After preparing the isolated Codex gateway and target described by the
+After preparing the isolated Codex or Claude Code gateway and target described by the
 protocol, run the baseline suite from the target VM:
 
 ```sh
@@ -175,7 +175,7 @@ artifact inventory, and troubleshooting map.
 | `grind.py` | Host orchestration, evidence verification, scoring, and reporting |
 | `scenarios/` | Functional, adversarial, and namespace-matrix suites |
 | `guest/` | Files staged into the Inferno emulator at campaign time |
-| `scripts/` | Dependency, lab, liveness, quota, and Codex-home helpers |
+| `scripts/` | Dependency, lab, liveness, quota, and -home helpers |
 | `tests/` | Deterministic host and model-free emulator checks |
 | `docs/` | Architecture, runbooks, scenario reference, evidence reference, and protocol |
 | `infernode.lock` | Exact external InferNode source revision |
